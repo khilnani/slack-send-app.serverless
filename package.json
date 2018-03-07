@@ -2,6 +2,7 @@
   "name": "slack-send-messages-app",
   "version": "0.0.1",
   "description": "Send Slack messages on your own terms.",
+  "license":"apache-2.0",
   "main": "handler.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
