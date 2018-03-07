@@ -1,0 +1,29 @@
+{
+  "name": "slack-send-messages-app",
+  "version": "0.0.1",
+  "description": "Send Slack messages on your own terms.",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khilnani/slack-send-messages-app.serverless.git"
+  },
+  "keywords": [
+    "slack",
+    "send",
+    "messages",
+    "serverless"
+  ],
+  "author": "nik@khilnani.org",
+  "bugs": {
+    "url": "https://github.com/khilnani/slack-send-messages-app.serverless/issues"
+  },
+  "homepage": "https://github.com/khilnani/slack-send-messages-app.serverless#readme",
+  "dependencies": {
+    "chrono-node": "^1.3.5",
+    "moment": "^2.21.0",
+    "moment-timezone": "^0.5.14"
+  }
+}
