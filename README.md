@@ -110,24 +110,51 @@ We will need to add the app to you Slack Workspace
 
 # Links
 
-## NLP
+## Slack
 
-- https://github.com/wanasit/chrono
-    - https://github.com/wanasit/chrono/issues/214
-- https://github.com/neilgupta/Sherlock
-- http://compromise.cool
+- SDK
+    - https://github.com/slackapi/node-slack-sdk
+- API
+    - https://api.slack.com/apps
+    - https://api.slack.com/methods/chat.postMessage
+    - https://api.slack.com/methods/oauth.access
 
+## Node.js
 
-## Dates 
+- NLP
+    - https://github.com/wanasit/chrono
+        - https://github.com/wanasit/chrono/issues/214
+    - https://github.com/neilgupta/Sherlock
+    - http://compromise.cool
+- Dates 
+    - https://www.epochconverter.com
+    - http://momentjs.com/docs/
+    - http://momentjs.com/timezone/docs/#/
+- Promises
+    - https://aws.amazon.com/blogs/developer/support-for-promises-in-the-sdk/
+- Javascript
+    - https://github.com/request/request-promise
+    - https://github.com/request/request
+    - http://bluebirdjs.com/docs/api-reference.html
 
-- https://www.epochconverter.com
-- http://momentjs.com/docs/
-- http://momentjs.com/timezone/docs/#/
+## AWS
 
-
-## Slack Documentation
-
-- https://api.slack.com/events-api
-- https://api.slack.com/slash-commands
-- https://api.slack.com/incoming-webhooks
-- https://api.slack.com/bot-users
+- Javascript
+    - https://github.com/awsdocs/aws-doc-sdk-examples/tree/master/javascript/example_code
+- Env Variables
+    - https://docs.aws.amazon.com/lambda/latest/dg/tutorial-env_cli.html
+- DynamoDB
+    - JS
+        - https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/dynamodb-example-table-read-write.html
+        - https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB.html
+        - https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html
+    - Guide
+        - https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-dynamodb-table.html
+        - https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/WorkingWithItems.html#WorkingWithItems.WritingData
+        - https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
+    - API
+        - https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Operations_Amazon_DynamoDB.html
+        - https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+        - https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+    - Web
+        - https://stackoverflow.com/questions/35963243/how-to-query-dynamodb-by-date-range-key-with-no-obvious-hash-key
