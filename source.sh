@@ -4,12 +4,7 @@ scmd="serverless  "
 
 s-install () {
     npm install -g serverless --upgrade
-}
-
-s-requirements () {
-    rm -rf ./site-packages
-    mkdir -p ./site-packages
-    pip install --upgrade -t site-packages/ -r requirements.txt
+    npm install
 }
 
 s-deploy () {

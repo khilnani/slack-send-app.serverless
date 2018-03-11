@@ -11,12 +11,16 @@ provider:
     iamRoleStatements:
         - Effect: "Allow"
           Action:
-              - "sqs:*"
-              - "ses:SendEmail"
+              - "dynamodb:*"
           Resource: "*"
+    environment:
+        DDB_TOKENS: ${self:service}-${opt:stage, self:provider.stage}-v0.0-tokens
+        DDB_SCH_MSG: ${self:service}-${opt:stage, self:provider.stage}-v0.0-sch_messages
 package:
     exclude:
         - .npmignore
+        - fixtures/**
+        - .git/**
 functions:
     schedule:
         handler: handler.scheduled_event
@@ -27,9 +31,18 @@ functions:
                 name: ${self:service}-${opt:stage, self:provider.stage}-every-5-mins
                 description: Every 5 minutes
                 rate: rate(5 minutes)
-                enabled: false
+                enabled: true
             - http:
                 path: slack/send/run
+                method: get
+                private: false
+    redirect:
+        handler: handler.slack_redirect
+        description: Handle OAuth redirect for Slack
+        timeout: 30
+        events:
+            - http:
+                path: slack/send/redirect
                 method: get
                 private: false
     command:
@@ -52,7 +65,44 @@ functions:
                 private: false
 resources:
     Resources:
+        TableTokens:
+            Type: AWS::DynamoDB::Table 
+            Properties:
+                TableName: ${self:provider.environment.DDB_TOKENS}
+                AttributeDefinitions:
+                    - AttributeName: team_id
+                      AttributeType: S
+                    - AttributeName: channel_id
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: team_id
+                      KeyType: HASH
+                    - AttributeName: channel_id
+                      KeyType: RANGE
+                ProvisionedThroughput:
+                    ReadCapacityUnits: 20
+                    WriteCapacityUnits: 20
+        TableScheduledMessages:
+            Type: AWS::DynamoDB::Table 
+            Properties:
+                TableName: ${self:provider.environment.DDB_SCH_MSG}
+                AttributeDefinitions:
+                    - AttributeName: ymd
+                      AttributeType: S
+                    - AttributeName: iso_date
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: ymd
+                      KeyType: HASH
+                    - AttributeName: iso_date
+                      KeyType: RANGE
+                ProvisionedThroughput:
+                    ReadCapacityUnits: 20
+                    WriteCapacityUnits: 20
         ScheduleLogGroup:
+            Properties:
+                RetentionInDays: "7"
+        RedirectLogGroup:
             Properties:
                 RetentionInDays: "7"
         CommandLogGroup:

@@ -2,9 +2,10 @@
 node_modules
 jspm_packages
 
-# Serverless directories
+# Install specific files
 .serverless
-
-# Custom files
 INFO.md
-CONFIG.md
+
+# Slack configuration
+SLACK.md
+slack.json
