@@ -18,13 +18,11 @@ const message_err_validation = 'The message token could not be validated.';
 const message_ack = 'Got it. Will send your message on ';
 const date_format_log = 'ddd, MMM Do YYYY h:mma z';
 
-// ISO8601 - 2013-10-01T09:00:00.000-04:00
 const date_format_iso = 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]';
 const date_format_ymdh = 'YYYY-MM-DD[T]HH:';
 const date_format_ymd = 'YYYY-MM-DD';
 
 const tz = 'America/New_York';
-const tz_offset = -5*60;
 
 const aws = require('aws-sdk');
 aws.config.update({region: 'us-east-1'});
@@ -37,6 +35,21 @@ const slack = require('./slack.json');
 console.log('slack.json', slack);
 
 const { WebClient } = require('@slack/client');
+
+
+
+/*
+    e.g. 'America/New_York'
+    e.g. 'Asia/Kolkata'
+*/
+const get_tz_offset = (name) => {
+    const zone = moment_tz.tz.zone(name);
+    const offset = -1 * zone.utcOffset(new Date().getTime());
+    return offset;
+};
+
+
+
 
 const send_response = (body, callback) => {
     const response = {
@@ -96,6 +109,7 @@ const get_date_formatted = (date) => {
 
 
 const get_date_iso = (date) => {
+    const tz_offset = get_tz_offset(tz);
     const date_moment = moment(date).utcOffset(tz_offset);
     console.log('Date (iso moment): ' + date_moment.calendar());
     
@@ -111,6 +125,7 @@ const get_date_iso = (date) => {
 
 
 const get_date_ymd = (date) => {
+    const tz_offset = get_tz_offset(tz);
     const date_moment = moment(date).utcOffset(tz_offset);
     console.log('Date (ymd moment): ' + date_moment.calendar());
     
@@ -123,6 +138,7 @@ const get_date_ymd = (date) => {
 
 
 const get_date_ymdh = (date) => {
+    const tz_offset = get_tz_offset(tz);
     const date_moment = moment(date).utcOffset(tz_offset);
     console.log('Date (ymdh moment): ' + date_moment.calendar());
     
@@ -135,6 +151,7 @@ const get_date_ymdh = (date) => {
 
 
 const get_date = (text) => {
+    const tz_offset = get_tz_offset(tz);
     const dates = chrono.parse(text, moment().utcOffset(tz_offset));
     const last_date_chrono = dates[dates.length-1].start;
     last_date_chrono.assign('timezoneOffset', tz_offset);

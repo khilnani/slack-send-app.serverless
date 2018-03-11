@@ -116,8 +116,10 @@ We will need to add the app to you Slack Workspace
     - https://github.com/slackapi/node-slack-sdk
 - API
     - https://api.slack.com/apps
-    - https://api.slack.com/methods/chat.postMessage
-    - https://api.slack.com/methods/oauth.access
+    - https://api.slack.com/methods
+        - https://api.slack.com/methods/chat.postMessage
+        - https://api.slack.com/methods/oauth.access
+        - https://api.slack.com/methods/users.info
 
 ## Node.js
 
@@ -130,8 +132,6 @@ We will need to add the app to you Slack Workspace
     - https://www.epochconverter.com
     - http://momentjs.com/docs/
     - http://momentjs.com/timezone/docs/#/
-- Promises
-    - https://aws.amazon.com/blogs/developer/support-for-promises-in-the-sdk/
 - Javascript
     - https://github.com/request/request-promise
     - https://github.com/request/request
@@ -141,6 +141,7 @@ We will need to add the app to you Slack Workspace
 
 - Javascript
     - https://github.com/awsdocs/aws-doc-sdk-examples/tree/master/javascript/example_code
+    - https://aws.amazon.com/blogs/developer/support-for-promises-in-the-sdk/
 - Env Variables
     - https://docs.aws.amazon.com/lambda/latest/dg/tutorial-env_cli.html
 - DynamoDB
