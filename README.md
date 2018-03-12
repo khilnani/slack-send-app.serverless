@@ -2,6 +2,12 @@
 
 > Send Slack messages on your own terms.
 
+# Screenshots
+
+Below is screenshots once the API is deployed and added as an app on Slack
+
+<img src="https://raw.githubusercontent.com/khilnani/slack-send-messages-app.serverless/master/docs/screenshot.jpg" width="50%" />
+
 ## Setup
 
 OK, lets get started. There are quite a few steps here and you may need 30 mins to 1 hour depending on your familiarity with AWS. 
