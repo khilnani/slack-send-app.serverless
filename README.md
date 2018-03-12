@@ -4,7 +4,7 @@
 
 # Development Status
 
-It's not done yet. Take a look at [slack-send-messages-app.serverless/issues](/khilnani/slack-send-messages-app.serverless/issues)
+It's not done yet. Take a look at [slack-send-messages-app.serverless/issues](https://github.com/khilnani/slack-send-messages-app.serverless/issues) and feel free to report any issues you find.
 
 # Screenshots
 
