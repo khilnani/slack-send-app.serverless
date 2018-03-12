@@ -2,6 +2,10 @@
 
 > Send Slack messages on your own terms.
 
+# Development Status
+
+It's not done yet. Take a look at [slack-send-messages-app.serverless/issues](/khilnani/slack-send-messages-app.serverless/issues)
+
 # Screenshots
 
 Below is a screenshot from Slack once the API is deployed and added as a Slack app.
