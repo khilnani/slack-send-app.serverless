@@ -4,7 +4,7 @@
 
 # Screenshots
 
-Below is screenshots once the API is deployed and added as an app on Slack
+Below is a screenshot from Slack once the API is deployed and added as a Slack app.
 
 <img src="https://raw.githubusercontent.com/khilnani/slack-send-messages-app.serverless/master/docs/screenshot.jpg" width="35%" />
 
