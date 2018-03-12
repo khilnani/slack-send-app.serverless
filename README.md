@@ -6,7 +6,7 @@
 
 Below is screenshots once the API is deployed and added as an app on Slack
 
-<img src="https://raw.githubusercontent.com/khilnani/slack-send-messages-app.serverless/master/docs/screenshot.jpg" width="50%" />
+<img src="https://raw.githubusercontent.com/khilnani/slack-send-messages-app.serverless/master/docs/screenshot.jpg" width="35%" />
 
 ## Setup
 
