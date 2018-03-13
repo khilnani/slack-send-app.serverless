@@ -551,8 +551,7 @@ module.exports.slack_redirect = (event, context, callback) => {
         rp(options)
             .then((data) => {
                 if(data.ok) {
-                    body.message = 'Oauth Success';
-                    console.log(body.message);
+                    console.log('Oauth Success');
                     console.log(data);
                     const team_id = data.team_id;
                     const access_token = data.access_token;

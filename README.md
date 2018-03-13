@@ -1,6 +1,6 @@
 # slack-send-messages-app.serverless
 
-> Send Slack messages on your own terms.
+>  Schedule your Slack messages.
 
 # Development Status
 
@@ -101,10 +101,7 @@ We will need to add the app to you Slack Workspace
         - incoming-webhook
         - chat:write:bot
         - chat:write:user
-        - groups:read
-        - team:read
         - users.profile:read
-        - users:read
 - Navigate to: Bot User
   - Add Name & Username: send-messages
   - Always Show My Bot as Online: Yes
