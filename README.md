@@ -1,6 +1,6 @@
 # slack-send-messages-app.serverless
 
-> Send Slack messages on your own terms.
+>  Schedule your Slack messages.
 
 # Development Status
 
