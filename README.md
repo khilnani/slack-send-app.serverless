@@ -2,6 +2,8 @@
 
 > Send Slack messages on your own terms.
 
+Click here to install - <a href="https://slack.com/oauth/authorize?client_id=325416105319.323712212480&scope=commands,incoming-webhook,chat:write:user,chat:write:bot,bot,users.profile:read"><img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcset="https://platform.slack-platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x" /></a>
+
 # Development Status
 
 It's not done yet. Take a look at [slack-send-messages-app.serverless/issues](https://github.com/khilnani/slack-send-messages-app.serverless/issues) and feel free to report any issues you find.
