@@ -52,7 +52,6 @@ const get_tz_offset = (name) => {
 
 
 
-
 const send_response = (body, callback) => {
     const response = {
         statusCode: 200,
@@ -63,6 +62,20 @@ const send_response = (body, callback) => {
     };
     callback(null, response);
 };
+
+
+
+const redirect_response = (url, callback) => {
+    const response = {
+        statusCode: 301,
+        headers: {
+            Location: url
+        },
+        body: '',
+    };
+    callback(null, response);
+};
+
 
 
 /*
@@ -547,7 +560,7 @@ module.exports.slack_redirect = (event, context, callback) => {
                     const p = persist_token(team_id, channel_id, access_token, data);
                     p.then((data) => {
                         console.log('Oauth Persist Success', data);
-                        send_response(body, callback);
+                        redirect_response(slack.installed_url, callback);
                     })
                     .catch((err) => {
                         console.log('Oauth Persist Error', err);
