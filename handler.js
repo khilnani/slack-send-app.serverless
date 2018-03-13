@@ -15,7 +15,9 @@ const ddb_sch_msg = process.env.DDB_SCH_MSG;
 
 const message_err = 'Oops, Unable to schedule your message for ';
 const message_err_validation = 'The message token could not be validated.';
-const message_ack = 'Got it. Will send your message on ';
+const message_ack = 'Got it. "';
+const message_ack_delim = '" on ';
+const message_no_date = 'Hmm... I couldnt find a date in your message: ';
 const date_format_log = 'ddd, MMM Do YYYY h:mma z';
 
 const date_format_iso = 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]';
@@ -150,20 +152,29 @@ const get_date_ymdh = (date) => {
 
 
 
-const get_date = (text) => {
+const parse_date = (text) => {
     const tz_offset = get_tz_offset(tz);
     const dates = chrono.parse(text, moment().utcOffset(tz_offset));
-    const last_date_chrono = dates[dates.length-1].start;
-    last_date_chrono.assign('timezoneOffset', tz_offset);
-    const last_date = last_date_chrono.date();
-    // console.log(last_date);
-    // const offset = new Date().getTimezoneOffset();
-    // console.log(offset);
-    // console.log(moment.tz.guess());
-    get_date_iso(last_date);
-    console.log('Date (formatted): ' + get_date_formatted(last_date));
 
-    return last_date;
+    if(dates.length > 0) {
+        const last_date = dates[dates.length-1];
+
+        const clean_text = text.substring(0,last_date.index);
+
+        const last_date_start = last_date.start;
+        last_date_start.assign('timezoneOffset', tz_offset);
+        const date = last_date_start.date();
+        // console.log(date);
+        // const offset = new Date().getTimezoneOffset();
+        // console.log(offset);
+        // console.log(moment.tz.guess());
+        get_date_iso(date);
+        console.log('Date (formatted): ' + get_date_formatted(date));
+
+        return [date, clean_text];
+    }
+
+    return [undefined, undefined];
 };
 
 
@@ -245,7 +256,6 @@ const persist_scheduled_message = (date, payload) => {
     const team_id =     payload.team_id;
     const user_id =     payload.user_id;
     const channel_id =  payload.channel_id;
-    const text =        payload.text;
     const p_str =       JSON.stringify(payload);
     const _id =         new Date().getTime();
     const _created =    new Date().getTime();
@@ -260,7 +270,6 @@ const persist_scheduled_message = (date, payload) => {
             'team_id' :     {S: String(team_id)},
             'user_id' :     {S: String(user_id)},
             'channel_id' :  {S: String(channel_id)},
-            'text' :        {S: String(text)},
             'payload' :     {S: String(p_str)},
             '_id' :         {S: String(_id)},
             '_created' :    {N: String(_created)},
@@ -353,10 +362,11 @@ const slack_post_message = (_id, ymd, iso_date, payload) => {
             if(_state == -1) {
                 const access_token = item.access_token['S'];
                 const slack_web = new WebClient(access_token);
+                const clean_text = payload.clean_text;
 
                 let params = {
-                    channel: payload.channel_id,
-                    text: payload.text,
+                    channel: channel_id,
+                    text: clean_text,
                     as_user: true,
                 };
 
@@ -399,8 +409,8 @@ module.exports.scheduled_event = (event, context, callback) => {
     let p = query_scheduled_messages(now);
 
     p.then((data) => {
-        console.log('Query Payloads Success', data);
         const items = data['Items'];
+        console.log('Query Payloads Success', items.length);
         for(var ea in items) {
             const item = items[ea];
 
@@ -409,7 +419,12 @@ module.exports.scheduled_event = (event, context, callback) => {
             const _state = Number(item._state['N']);
             const _id = item._id['S'];
 
-            if( _state == -1) {
+            const now = new Date();
+            const iso = new Date(iso_date);
+
+            console.log('iso', iso, '<', 'now', now);
+
+            if( _state == -1 && iso.getTime() < now.getTime()) {
                 let _payload = item.payload['S'];
                 let payload = JSON.parse(_payload);
                 console.log(payload);
@@ -433,26 +448,34 @@ module.exports.scheduled_event = (event, context, callback) => {
 module.exports.slack_command = (event, context, callback) => {
     const payload = get_payload(event);
 
-    let text = payload.text;
-    const d = get_date(text);
-    const d_str = get_date_formatted(d);
-
     let body = {};
-    body.response_type = 'in_channel';
-    //body.response_type = 'ephemeral';
+    //body.response_type = 'in_channel';
+    body.response_type = 'ephemeral';
 
-    if(validate_payload(-1, payload, callback)) {
-        let p = persist_scheduled_message(d, payload);
+    let text = payload.text;
+    const [d, clean_text] = parse_date(text);
 
-        p.then((data) => {
-            console.log('Success', data);
-            body.text = message_ack + d_str;
-            send_response(body, callback);
-        }).catch((err) => {
-            console.log('Error', err);
-            body.text = message_err + d_str;
-            send_response(body, callback);
-        });
+    if(d != undefined) {
+        const d_str = get_date_formatted(d);
+        payload.clean_text = clean_text;
+
+        if(validate_payload(-1, payload, callback)) {
+            let p = persist_scheduled_message(d, payload);
+
+            p.then((data) => {
+                console.log('Success', data);
+                body.text = message_ack + clean_text + message_ack_delim + d_str;
+                send_response(body, callback);
+            }).catch((err) => {
+                console.log('Error', err);
+                body.text = message_err + d_str;
+                send_response(body, callback);
+            });
+        }
+    } else {
+        console.log('No date found');
+        body.text = message_no_date + text;
+        send_response(body, callback);
     }
 };
 
