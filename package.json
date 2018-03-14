@@ -1,5 +1,5 @@
 {
-  "name": "slack-send-messages-app",
+  "name": "slack-send-app",
   "version": "0.0.1",
   "description": "Send Slack messages on your own terms.",
   "license": "Apache-2.0",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/khilnani/slack-send-messages-app.serverless.git"
+    "url": "git+https://github.com/khilnani/slack-send-app.serverless.git"
   },
   "keywords": [
     "slack",
@@ -20,9 +20,9 @@
   ],
   "author": "nik@khilnani.org",
   "bugs": {
-    "url": "https://github.com/khilnani/slack-send-messages-app.serverless/issues"
+    "url": "https://github.com/khilnani/slack-send-app.serverless/issues"
   },
-  "homepage": "https://github.com/khilnani/slack-send-messages-app.serverless#readme",
+  "homepage": "https://github.com/khilnani/slack-send-app.serverless#readme",
   "dependencies": {
     "@slack/client": "^4.0.0",
     "aws-sdk": "^2.207.0",
