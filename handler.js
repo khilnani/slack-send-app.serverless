@@ -381,6 +381,10 @@ const slack_post_message = (_id, ymd, iso_date, payload) => {
                     channel: channel_id,
                     text: clean_text,
                     as_user: true,
+                    link_names: true,
+                    parse: 'full',
+                    reply_broadcast: true,
+                    thread_ts: undefined
                 };
 
                 slack_web.chat.postMessage(params)
