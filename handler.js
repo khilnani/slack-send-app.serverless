@@ -500,22 +500,22 @@ module.exports.slack_command = (event, context, callback) => {
 
 module.exports.slack_event = (event, context, callback) => {
     const payload = get_payload(event);
-
+    
     let body = {};
-    let type = payload.type;
-    if(type == 'url_verification') {
-        body.challenge = payload.challenge;
+    if(validate_payload(-1, payload, callback)) {
+        let type = payload.type;
+        if(type == 'url_verification') {
+            body.challenge = payload.challenge;
+            console.log('Event:challange');
+        }
+        send_response(body, callback);
     }
-
-    send_response(body, callback);
 };
 
 
 
 /*
     Oauth Request (get)
-    - code
-
     Oauth Response (json)
 
     - access_token

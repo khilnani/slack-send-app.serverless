@@ -93,21 +93,20 @@ We will need to add the app to you Slack Workspace
     - Command: /send
     - Request URL: /dev/slack/send/command
     - Description: Send messages on steriods!
-    - Usage hint: [MESSAGE tomorrow, at TIME, in N hours/mins/seconds] [list] [delete ID]
+    - Usage hint: [MESSAGE WHEN]
 - Navigate to: OAuth & Permissions
     - Add Permission Scopes
-        - bot
-        - commands
-        - incoming-webhook
-        - chat:write:bot
-        - chat:write:user
-        - users.profile:read
+       - bot
+       - commands
+       - chat:write:user
+       - users.profile:read
 - Navigate to: Bot User
-  - Add Name & Username: send-app
+  - Display Name: /send-app
+  - Username: send-app
   - Always Show My Bot as Online: Yes
 - Navigate to: Event Subscriptions
     - Enable: Enable Events
-    - Request URL: /dev/slack/send/command
+    - Request URL: /dev/slack/send/event
     - Subscribe to Workspace Events
         - app_uninstalled
         - tokens_revoked
