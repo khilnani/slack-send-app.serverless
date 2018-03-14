@@ -1,4 +1,4 @@
-service: slack-send-messages-app
+service: slack-send-app
 
 provider:
     name: aws

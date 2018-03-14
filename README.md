@@ -1,16 +1,16 @@
-# slack-send-messages-app.serverless
+# slack-send-app.serverless
 
->  Schedule your Slack messages.
+> Schedule your Slack messages.
 
 # Development Status
 
-It's not done yet. Take a look at [slack-send-messages-app.serverless/issues](https://github.com/khilnani/slack-send-messages-app.serverless/issues) and feel free to report any issues you find.
+It's not done yet. Take a look at [slack-send-app.serverless/issues](https://github.com/khilnani/slack-send-app.serverless/issues) and feel free to report any issues you find.
 
 # Screenshots
 
 Below is a screenshot from Slack once the API is deployed and added as a Slack app.
 
-<img src="https://raw.githubusercontent.com/khilnani/slack-send-messages-app.serverless/master/docs/screenshot.jpg" width="35%" />
+<img src="https://raw.githubusercontent.com/khilnani/slack-send-app.serverless/master/docs/screenshot.jpg" width="35%" />
 
 ## Setup
 
@@ -103,7 +103,7 @@ We will need to add the app to you Slack Workspace
         - chat:write:user
         - users.profile:read
 - Navigate to: Bot User
-  - Add Name & Username: send-messages
+  - Add Name & Username: send-app
   - Always Show My Bot as Online: Yes
 - Navigate to: Event Subscriptions
     - Enable: Enable Events
@@ -125,6 +125,7 @@ We will need to add the app to you Slack Workspace
     - https://api.slack.com/apps
     - https://api.slack.com/methods
         - https://api.slack.com/methods/chat.postMessage
+            - https://api.slack.com/docs/message-threading
         - https://api.slack.com/methods/oauth.access
         - https://api.slack.com/methods/users.info
 
