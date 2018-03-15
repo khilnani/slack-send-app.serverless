@@ -13,8 +13,15 @@ const chrono = require('chrono-node');
 const ddb_tokens = process.env.DDB_TOKENS;
 const ddb_sch_msg = process.env.DDB_SCH_MSG;
 
+const config = require('./config.json');
+console.log('config.json', config);
+
+const slack = require('./slack.json');
+console.log('slack.json', slack);
+
 const message_err = 'Oops, Unable to schedule your message for ';
 const message_err_validation = 'The message token could not be validated.';
+const message_err_token = 'You might need to authorize the app to post messages on your behalf. Please visit ' + slack.install_url;
 const message_ack = 'Got it. "';
 const message_ack_delim = '" on ';
 const message_no_date = 'Hmm... I couldnt find a date in your message: ';
@@ -30,11 +37,6 @@ const aws = require('aws-sdk');
 aws.config.update({region: 'us-east-1'});
 const ddb = new aws.DynamoDB();
 
-const config = require('./config.json');
-console.log('config.json', config);
-
-const slack = require('./slack.json');
-console.log('slack.json', slack);
 
 const { WebClient } = require('@slack/client');
 
@@ -212,7 +214,7 @@ const validate_payload = (_id, payload, callback) => {
 
 
 
-const persist_token = (team_id, channel_id, access_token, payload) => {
+const persist_token = (team_id, user_id, access_token, payload) => {
 
     const p_str = JSON.stringify(payload);
     const _id =         new Date().getTime();
@@ -224,7 +226,7 @@ const persist_token = (team_id, channel_id, access_token, payload) => {
         TableName: ddb_tokens,
         Item: {
             'team_id' :         {S: String(team_id)},
-            'channel_id' :      {S: String(channel_id)},
+            'user_id' :      {S: String(user_id)},
             'access_token' :    {S: String(access_token)},
             'payload' :         {S: String(p_str)},
             '_id' :             {S: String(_id)},
@@ -244,15 +246,15 @@ const persist_token = (team_id, channel_id, access_token, payload) => {
 
 
 
-const query_token = (team_id, channel_id) => {
+const query_token = (team_id, user_id) => {
 
     var params = {
         TableName: ddb_tokens,
         ExpressionAttributeValues: {
             ':team_id' : {S: team_id},
-            ':channel_id' : {S: channel_id},
+            ':user_id' : {S: user_id},
         },
-        KeyConditionExpression: 'team_id = :team_id AND channel_id = :channel_id',
+        KeyConditionExpression: 'team_id = :team_id AND user_id = :user_id',
     };
 
     console.log(params);
@@ -260,6 +262,40 @@ const query_token = (team_id, channel_id) => {
     let p = ddb.query(params).promise();
     return p;
 };
+
+
+
+const check_token = (team_id, user_id) => {
+    console.log('Check Token', team_id, user_id);
+
+    return new Promise((resolve, reject) => {
+        const p = query_token(team_id, user_id);
+        p.then((data) => {
+            const items = data['Items'];
+
+            if(items.length > 0) {
+                const item = items[0];
+
+                const _tid = Number(item._id['S']);
+                const _state = Number(item._state['N']);
+
+                if(_state == -1) {
+                    const access_token = item.access_token['S'];
+                    resolve(access_token);
+                } else {
+                    console.log(message_err_token, team_id, user_id);
+                    reject();
+                }
+            } else {
+                console.log(message_err_token, team_id, user_id);
+                reject();
+            }
+        }).catch((err) => {
+            console.log(message_err_token, team_id, user_id);
+            reject();
+        });
+    });
+}
 
 
 
@@ -359,58 +395,43 @@ const query_scheduled_messages = (date) => {
 
 
 const slack_post_message = (_id, ymd, iso_date, payload) => {
-    const channel_id = payload.channel_id;
     const team_id = payload.team_id;
+    const user_id = payload.user_id;
+    const channel_id = payload.channel_id;
 
-    const p = query_token(team_id, channel_id);
-    p.then((data) => {
-        const items = data['Items'];
+    const p = check_token(team_id, user_id);
+    p.then((access_token) => {
+        const slack_web = new WebClient(access_token);
+        const clean_text = payload.clean_text;
 
-        if(items.length > 0) {
-            const item = items[0];
+        let params = {
+            channel: channel_id,
+            text: clean_text,
+            as_user: true,
+            link_names: true,
+            parse: 'full',
+            reply_broadcast: true,
+            thread_ts: undefined
+        };
 
-            const _tid = Number(item._id['S']);
-            const _state = Number(item._state['N']);
-
-            if(_state == -1) {
-                const access_token = item.access_token['S'];
-                const slack_web = new WebClient(access_token);
-                const clean_text = payload.clean_text;
-
-                let params = {
-                    channel: channel_id,
-                    text: clean_text,
-                    as_user: true,
-                    link_names: true,
-                    parse: 'full',
-                    reply_broadcast: true,
-                    thread_ts: undefined
-                };
-
-                slack_web.chat.postMessage(params)
+        slack_web.chat.postMessage(params)
+        .then((data) => {
+            if(data.ok) {
+                console.log('Post Message Sent: ', _id, data.ts);
+                update_scheduled_message(_id, ymd, iso_date)
                 .then((data) => {
-                    if(data.ok) {
-                        console.log('Post Message Sent: ', _id, data.ts);
-                        update_scheduled_message(_id, ymd, iso_date)
-                        .then((data) => {
-                            console.log('Post Message Update Success', data);
-                        })
-                        .catch((err) => {
-                            console.log('Post Message Update Error', err);
-                        });
-                    } else {
-                        console.log('Post Message Slack Error', _id, data);
-                    }
+                    console.log('Post Message Update Success', data);
                 })
                 .catch((err) => {
-                    console.log('Post Message Slack Error', _id, err);
+                    console.log('Post Message Update Error', err);
                 });
             } else {
-                console.log('Post Message Access token Inactive: ', _tid, team_id, channel_id);
+                console.log('Post Message Slack Error', _id, data);
             }
-        } else {
-            console.log('Post Message No access tokens found for: ', _id, team_id, channel_id);
-        }
+        })
+        .catch((err) => {
+            console.log('Post Message Slack Error', _id, err);
+        });
     })
     .catch((err) => {
         console.log('Post Message Query Token Error', _id, err);
@@ -469,7 +490,9 @@ module.exports.slack_command = (event, context, callback) => {
     //body.response_type = 'in_channel';
     body.response_type = 'ephemeral';
 
-    let text = payload.text;
+    const text = payload.text;
+    const team_id = payload.team_id;
+    const user_id = payload.user_id;
     const [d, clean_text] = parse_date(text);
 
     if(d != undefined) {
@@ -477,20 +500,28 @@ module.exports.slack_command = (event, context, callback) => {
         payload.clean_text = clean_text;
 
         if(validate_payload(-1, payload, callback)) {
-            let p = persist_scheduled_message(d, payload);
+            const p = check_token(team_id, user_id);
+            p.then((access_token) => {
 
-            p.then((data) => {
-                console.log('Success', data);
-                body.text = message_ack + clean_text + message_ack_delim + d_str;
-                send_response(body, callback);
+                let p2 = persist_scheduled_message(d, payload);
+                p2.then((data) => {
+                    console.log('Command Success', data);
+                    body.text = message_ack + clean_text + message_ack_delim + d_str;
+                    send_response(body, callback);
+                }).catch((err) => {
+                    console.log('Command Persist Error', err);
+                    body.text = message_err + d_str;
+                    send_response(body, callback);
+                });
+
             }).catch((err) => {
-                console.log('Error', err);
-                body.text = message_err + d_str;
+                console.log('Command Token Error');
+                body.text = message_err_token;
                 send_response(body, callback);
             });
         }
     } else {
-        console.log('No date found');
+        console.log('Command: No date found');
         body.text = message_no_date + text;
         send_response(body, callback);
     }
@@ -558,12 +589,12 @@ module.exports.slack_redirect = (event, context, callback) => {
                     console.log('Oauth Success');
                     console.log(data);
                     const team_id = data.team_id;
+                    const user_id = data.user_id;
                     const access_token = data.access_token;
-                    const channel_id = data.incoming_webhook.channel_id;
-                    const p = persist_token(team_id, channel_id, access_token, data);
+                    const p = persist_token(team_id, user_id, access_token, data);
                     p.then((data) => {
                         console.log('Oauth Persist Success', data);
-                        redirect_response(slack.installed_url, callback);
+                        redirect_response(slack.install_success_url, callback);
                     })
                     .catch((err) => {
                         console.log('Oauth Persist Error', err);

@@ -72,12 +72,12 @@ resources:
                 AttributeDefinitions:
                     - AttributeName: team_id
                       AttributeType: S
-                    - AttributeName: channel_id
+                    - AttributeName: user_id
                       AttributeType: S
                 KeySchema:
                     - AttributeName: team_id
                       KeyType: HASH
-                    - AttributeName: channel_id
+                    - AttributeName: user_id
                       KeyType: RANGE
                 ProvisionedThroughput:
                     ReadCapacityUnits: 20

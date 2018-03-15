@@ -1,6 +1,6 @@
 {
-    "app_url": "App install url",
-    "installed_url": "url to send users to after installing the app",
+    "install_url": "url with app install button",
+    "install_success_url": "url to send users to after installing the app",
     "client_id": "client id from app config",
     "client_secret": "client scetret from app config",
     "token": "verification token from app config"
