@@ -87,14 +87,14 @@ resources:
             Properties:
                 TableName: ${self:provider.environment.DDB_SCH_MSG}
                 AttributeDefinitions:
-                    - AttributeName: ymd
+                    - AttributeName: id
                       AttributeType: S
-                    - AttributeName: iso_date
+                    - AttributeName: message_id
                       AttributeType: S
                 KeySchema:
-                    - AttributeName: ymd
+                    - AttributeName: id
                       KeyType: HASH
-                    - AttributeName: iso_date
+                    - AttributeName: message_id
                       KeyType: RANGE
                 ProvisionedThroughput:
                     ReadCapacityUnits: 20

@@ -236,9 +236,7 @@ const persist_token = (team_id, user_id, access_token, payload) => {
         }
     };
 
-    console.log('------');
-    console.log(params);
-    console.log('------');
+//    console.log(params);
 
     let p = ddb.putItem(params).promise();
     return p;
@@ -257,7 +255,7 @@ const query_token = (team_id, user_id) => {
         KeyConditionExpression: 'team_id = :team_id AND user_id = :user_id',
     };
 
-    console.log(params);
+//    console.log(params);
 
     let p = ddb.query(params).promise();
     return p;
@@ -300,21 +298,23 @@ const check_token = (team_id, user_id) => {
 
 
 const persist_scheduled_message = (date, payload) => {
-    const ymd =         get_date_ymd(date)
+    const _id =         new Date().getTime();
+    const _created =    new Date().getTime();
+    const _updated =    new Date().getTime();
+    const _state =      -1;
+    const id =          get_date_ymd(date)
+    const message_id =  get_date_iso(date) + ',' + _id;
     const iso_date =    get_date_iso(date);
     const team_id =     payload.team_id;
     const user_id =     payload.user_id;
     const channel_id =  payload.channel_id;
     const p_str =       JSON.stringify(payload);
-    const _id =         new Date().getTime();
-    const _created =    new Date().getTime();
-    const _updated =    new Date().getTime();
-    const _state =      -1;
 
     let params = {
         TableName: ddb_sch_msg,
         Item: {
-            'ymd' :         {S: String(ymd)},
+            'id' :         {S: String(id)},
+            'message_id' :  {S: String(message_id)},
             'iso_date' :    {S: String(iso_date)},
             'team_id' :     {S: String(team_id)},
             'user_id' :     {S: String(user_id)},
@@ -327,9 +327,7 @@ const persist_scheduled_message = (date, payload) => {
         }
     };
 
-    console.log('------');
-    console.log(params);
-    console.log('------');
+//    console.log(params);
 
     let p = ddb.putItem(params).promise();
     return p;
@@ -337,15 +335,15 @@ const persist_scheduled_message = (date, payload) => {
 
 
 
-const update_scheduled_message = (_id, ymd, iso_date) => {
+const update_scheduled_message = (_id, id, message_id) => {
     const _updated =    new Date().getTime();
     const _state =      0;
 
     let params = {
         TableName: ddb_sch_msg,
         Key: {
-            'ymd' :         {S: String(ymd)},
-            'iso_date' :    {S: String(iso_date)},
+            'id' :         {S: String(id)},
+            'message_id' :    {S: String(message_id)},
         },
         ExpressionAttributeNames: {
             '#i' :          '_id',
@@ -362,9 +360,7 @@ const update_scheduled_message = (_id, ymd, iso_date) => {
         ReturnValues: 'UPDATED_NEW',
     };
 
-    console.log('------');
-    console.log(params);
-    console.log('------')   ;
+//    console.log(params);
 
     let p = ddb.updateItem(params).promise();
     return p;
@@ -372,21 +368,45 @@ const update_scheduled_message = (_id, ymd, iso_date) => {
 
 
 
+const delete_scheduled_message = (_id, id, message_id) => {
+    const _updated =    new Date().getTime();
+    const _state =      0;
+
+    let params = {
+        TableName: ddb_sch_msg,
+        Key: {
+            'id' :         {S: String(id)},
+            'message_id' :    {S: String(message_id)},
+        },
+        ReturnValues: 'ALL_OLD',
+    };
+
+//    console.log(params);
+
+    let p = ddb.deleteItem(params).promise();
+    return p;
+}
+
+
+
 const query_scheduled_messages = (date) => {
-    const ymd =         get_date_ymd(date)
-    const ymdh =        get_date_ymdh(date)
-    const iso_date =    get_date_iso(date);
+    const id =         get_date_ymd(date);
+    const _state =      '-1';
 
     var params = {
         TableName: ddb_sch_msg,
         ExpressionAttributeValues: {
-            ':ymd':     {S: ymd},
-            ':ymdh':    {S: ymdh},
+            ':id':     {S: id},
+//            ':_state':     {S: _state},
         },
-        KeyConditionExpression: 'ymd = :ymd AND begins_with(iso_date, :ymdh)',
+//        ExpressionAttributeNames: {
+//            '#s' :          '_state',
+//        },
+        KeyConditionExpression: 'id = :id AND begins_with(message_id, :id)',
+//        FilterExpression: '#s = :_state',
     };
 
-    console.log(params);
+//    console.log(params);
 
     let p = ddb.query(params).promise();
     return p;
@@ -394,7 +414,7 @@ const query_scheduled_messages = (date) => {
 
 
 
-const slack_post_message = (_id, ymd, iso_date, payload) => {
+const slack_post_message = (_id, id, message_id, payload) => {
     const team_id = payload.team_id;
     const user_id = payload.user_id;
     const channel_id = payload.channel_id;
@@ -411,19 +431,19 @@ const slack_post_message = (_id, ymd, iso_date, payload) => {
             link_names: true,
             parse: 'full',
             reply_broadcast: true,
-            thread_ts: undefined
+            thread_ts: undefined,
         };
 
         slack_web.chat.postMessage(params)
         .then((data) => {
             if(data.ok) {
                 console.log('Post Message Sent: ', _id, data.ts);
-                update_scheduled_message(_id, ymd, iso_date)
+                delete_scheduled_message(_id, id, message_id)
                 .then((data) => {
-                    console.log('Post Message Update Success', data);
+                    console.log('Post Message Delete Success', data);
                 })
                 .catch((err) => {
-                    console.log('Post Message Update Error', err);
+                    console.log('Post Message Delete Error', err);
                 });
             } else {
                 console.log('Post Message Slack Error', _id, data);
@@ -448,11 +468,12 @@ module.exports.scheduled_event = (event, context, callback) => {
 
     p.then((data) => {
         const items = data['Items'];
-        console.log('Query Payloads Success', items.length);
+        console.log('Query Payload  Success', items.length);
         for(var ea in items) {
             const item = items[ea];
 
-            const ymd = item.ymd['S'];
+            const id = item.id['S'];
+            const message_id = item.message_id['S'];
             const iso_date = item.iso_date['S'];
             const _state = Number(item._state['N']);
             const _id = item._id['S'];
@@ -460,22 +481,22 @@ module.exports.scheduled_event = (event, context, callback) => {
             const now = new Date();
             const iso = new Date(iso_date);
 
-            console.log('iso', iso, '<', 'now', now);
+            console.log(_id, _state, 'iso', iso, '<=', 'now', now);
 
-            if( _state == -1 && iso.getTime() < now.getTime()) {
+            if( _state == -1 && iso.getTime() <= now.getTime()) {
                 let _payload = item.payload['S'];
                 let payload = JSON.parse(_payload);
                 console.log(payload);
                 if(validate_payload(_id, payload)) {
-                    slack_post_message(_id, ymd, iso_date, payload);
+                    slack_post_message(_id, id, message_id, payload);
                 }
             } else {
-                console.log('Skipped Message ', _id, _state);
+                console.log('Query Payload Skipped Message ', _id, _state);
             }
         }
         send_response(body, callback);
     }).catch((err) => {
-        console.log('Query Payloads Error', err);
+        console.log('Query Payload Error', err);
         send_response(body, callback);
     });
 
