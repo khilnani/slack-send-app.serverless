@@ -15,7 +15,7 @@ provider:
           Resource: "*"
     environment:
         DDB_TOKENS: ${self:service}-${opt:stage, self:provider.stage}-v0.0-tokens
-        DDB_SCH_MSG: ${self:service}-${opt:stage, self:provider.stage}-v0.0-sch_messages
+        DDB_MESSAGES: ${self:service}-${opt:stage, self:provider.stage}-v0.0-messages
 package:
     exclude:
         - .npmignore
@@ -85,20 +85,49 @@ resources:
         TableScheduledMessages:
             Type: AWS::DynamoDB::Table 
             Properties:
-                TableName: ${self:provider.environment.DDB_SCH_MSG}
+                TableName: ${self:provider.environment.DDB_MESSAGES}
                 AttributeDefinitions:
+                    - AttributeName: ymd
+                      AttributeType: S
                     - AttributeName: id
                       AttributeType: S
-                    - AttributeName: message_id
+                    - AttributeName: date_id
+                      AttributeType: S
+                    - AttributeName: team_id
+                      AttributeType: S
+                    - AttributeName: user_id
                       AttributeType: S
                 KeySchema:
-                    - AttributeName: id
+                    - AttributeName: ymd
                       KeyType: HASH
-                    - AttributeName: message_id
+                    - AttributeName: date_id
                       KeyType: RANGE
                 ProvisionedThroughput:
                     ReadCapacityUnits: 20
                     WriteCapacityUnits: 20
+                GlobalSecondaryIndexes:
+                    - IndexName: team_user_index
+                      KeySchema:
+                          - AttributeName: team_id
+                            KeyType: HASH
+                          - AttributeName: user_id
+                            KeyType: RANGE
+                      Projection:
+                          ProjectionType: ALL
+                      ProvisionedThroughput:
+                          ReadCapacityUnits: 20
+                          WriteCapacityUnits: 20
+                    - IndexName: team_id_index
+                      KeySchema:
+                          - AttributeName: team_id
+                            KeyType: HASH
+                          - AttributeName: id
+                            KeyType: RANGE
+                      Projection:
+                          ProjectionType: ALL
+                      ProvisionedThroughput:
+                          ReadCapacityUnits: 20
+                          WriteCapacityUnits: 20
         ScheduleLogGroup:
             Properties:
                 RetentionInDays: "7"

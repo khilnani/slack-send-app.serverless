@@ -1,5 +1,15 @@
 'use strict';
 
+// ----------------------------------------------------------
+// Libs
+// ----------------------------------------------------------
+
+/*
+id=ymd
+_id=id
+message_id=date_id
+*/
+
 const request = require('request');
 const rp = require('request-promise');
 const querystring = require('querystring');
@@ -9,9 +19,10 @@ const moment_tz = require('moment-timezone');
 // https://aws.amazon.com/blogs/developer/support-for-promises-in-the-sdk/
 const Promise = require('bluebird');
 const chrono = require('chrono-node');
+const shortid = require('shortid');
 
 const ddb_tokens = process.env.DDB_TOKENS;
-const ddb_sch_msg = process.env.DDB_SCH_MSG;
+const ddb_messages = process.env.DDB_MESSAGES;
 
 const config = require('./config.json');
 console.log('config.json', config);
@@ -19,26 +30,54 @@ console.log('config.json', config);
 const slack = require('./slack.json');
 console.log('slack.json', slack);
 
-const message_err = 'Oops, Unable to schedule your message for ';
-const message_err_validation = 'The message token could not be validated.';
-const message_err_token = 'You might need to authorize the app to post messages on your behalf. Please visit ' + slack.install_url;
-const message_ack = 'Got it. "';
-const message_ack_delim = '" on ';
-const message_no_date = 'Hmm... I couldnt find a date in your message: ';
-const date_format_log = 'ddd, MMM Do YYYY h:mma z';
+// ----------------------------------------------------------
+// Globals
+// ----------------------------------------------------------
 
+const message_err = 'Oops, We hit an expected error. Please try again.';
+const message_err_validation = 'The message token could not be validated.';
+
+const message_err_missing_text = 'Hmm... Did you forget to type a message?\n\nYou could also try:\n\n- */slist [inline]* or */send list [inline]*\nList unsent messages.\n_inline_ prints in the channel for everyone to see.\n\n- */sdelete ID* or */send delete ID*\nDelete a message';
+const message_err_missing_id = 'Hmm... I don\'t think you sent an ID.';
+const message_err_no_message = 'Oops, We found a date but no message: ';
+const message_err_no_date = 'Hmm... I couldn\'t find a date in your message: ';
+const message_err_missing_token = 'You might need to authorize the app to post messages on your behalf. Please visit ' + slack.install_url;
+
+const message_ack = 'Got it. Scheduled the message: ';
+const message_ack_delim = '" on ';
+
+const date_format_log = 'ddd, MMM Do YYYY h:mma z';
 const date_format_iso = 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]';
 const date_format_ymdh = 'YYYY-MM-DD[T]HH:';
 const date_format_ymd = 'YYYY-MM-DD';
 
 const tz = 'America/New_York';
 
+// ----------------------------------------------------------
+// Init stuff
+// ----------------------------------------------------------
+
+shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-.');
+
 const aws = require('aws-sdk');
 aws.config.update({region: 'us-east-1'});
 const ddb = new aws.DynamoDB();
 
-
 const { WebClient } = require('@slack/client');
+
+
+
+// ----------------------------------------------------------
+// Utils
+// ----------------------------------------------------------
+
+const new_id = () => {
+    const ts = new Date().getTime();
+    shortid.seed(ts);
+    const id = shortid.generate()
+    console.log('new_id', id);
+    return id;
+}
 
 
 
@@ -76,44 +115,6 @@ const redirect_response = (url, callback) => {
         body: '',
     };
     callback(null, response);
-};
-
-
-
-/*
-    Example event payload from slack slash command
-    Could be url encoded, or json
-
-    - token
-    - team_id
-    - team_domain
-    - channel_id
-    - channel_name
-    - user_id
-    - user_name
-    - command
-    - text
-*/
-
-const get_payload = (event) => {
-    let payload = {};
-    const body = event.body;
-    if(event.headers) {
-        const ct = event.headers['Content-Type'];
-        if(ct == 'application/x-www-form-urlencoded') {
-            console.log('form-urlencoded');
-            payload = querystring.parse(body);
-        } else if(ct == 'application/json') {
-            console.log('json');
-            payload = JSON.parse(body);
-        } else {
-            console.log('No Content-Type specified.');
-        }
-    } else {
-        console.log('No Headers specified.');
-    }
-    console.log(payload);
-    return payload;
 };
 
 
@@ -174,7 +175,7 @@ const parse_date = (text) => {
     if(dates.length > 0) {
         const last_date = dates[dates.length-1];
 
-        const clean_text = text.substring(0,last_date.index);
+        const clean_text = text.substring(0,last_date.index).trim();
 
         const last_date_start = last_date.start;
         last_date_start.assign('timezoneOffset', tz_offset);
@@ -194,15 +195,57 @@ const parse_date = (text) => {
 
 
 
+// ----------------------------------------------------------
+// Slack Utils 
+// ----------------------------------------------------------
+
+/*
+    Example event payload from slack slash command
+    Could be url encoded, or json
+
+    - token
+    - team_id
+    - team_domain
+    - channel_id
+    - channel_name
+    - user_id
+    - user_name
+    - command
+    - text
+*/
+
+const get_payload = (event) => {
+    let payload = {};
+    const body = event.body;
+    if(event.headers) {
+        const ct = event.headers['Content-Type'];
+        if(ct == 'application/x-www-form-urlencoded') {
+            console.log('form-urlencoded');
+            payload = querystring.parse(body);
+        } else if(ct == 'application/json') {
+            console.log('json');
+            payload = JSON.parse(body);
+        } else {
+            console.log('No Content-Type specified.');
+        }
+    } else {
+        console.log('No Headers specified.');
+    }
+    console.log(payload);
+    return payload;
+};
+
+
+
 /*
     _id: -1 if validating a command
  */ 
-const validate_payload = (_id, payload, callback) => {
+const validate_payload = (id, payload, callback) => {
     if(slack.token == payload.token) {
-        console.log('Payload Token Validation Success', _id);
+        console.log('Payload Token Validation Success', id);
         return true;
     } else {
-        console.log('Payload Token Validation Error', _id);
+        console.log('Payload Token Validation Error', id);
         if(callback) {
             let body = {};
             body.text = message_err_validation;
@@ -214,29 +257,34 @@ const validate_payload = (_id, payload, callback) => {
 
 
 
+// ----------------------------------------------------------
+// Data
+// ----------------------------------------------------------
+
 const persist_token = (team_id, user_id, access_token, payload) => {
 
-    const p_str = JSON.stringify(payload);
-    const _id =         new Date().getTime();
-    const _created =    new Date().getTime();
-    const _updated =    new Date().getTime();
-    const _state =      -1;
+    const p_str =       JSON.stringify(payload);
+    const id =          new_id();
+    const created =     new Date().getTime();
+    const updated =     new Date().getTime();
+    const state =       -1;
 
     let params = {
         TableName: ddb_tokens,
         Item: {
             'team_id' :         {S: String(team_id)},
-            'user_id' :      {S: String(user_id)},
+            'user_id' :         {S: String(user_id)},
             'access_token' :    {S: String(access_token)},
             'payload' :         {S: String(p_str)},
-            '_id' :             {S: String(_id)},
-            '_created' :        {N: String(_created)},
-            '_updated' :        {N: String(_updated)},
-            '_state' :          {N: String(_state)}, 
-        }
+            'id' :              {S: String(id)},
+            'created' :         {N: String(created)},
+            'updated' :         {N: String(updated)},
+            'state' :           {N: String(state)}, 
+        },
+        'ReturnValues': 'ALL_NEW',
     };
 
-//    console.log(params);
+    console.log('persist_token', params);
 
     let p = ddb.putItem(params).promise();
     return p;
@@ -274,22 +322,22 @@ const check_token = (team_id, user_id) => {
             if(items.length > 0) {
                 const item = items[0];
 
-                const _tid = Number(item._id['S']);
-                const _state = Number(item._state['N']);
+                const tid = Number(item.id['S']);
+                const state = Number(item.state['N']);
 
-                if(_state == -1) {
+                if(state == -1) {
                     const access_token = item.access_token['S'];
                     resolve(access_token);
                 } else {
-                    console.log(message_err_token, team_id, user_id);
-                    reject();
+                    console.log('Check Token Inactive', team_id, user_id);
+                    resolve();
                 }
             } else {
-                console.log(message_err_token, team_id, user_id);
-                reject();
+                console.log('Check Token Missing', team_id, user_id);
+                resolve();
             }
         }).catch((err) => {
-            console.log(message_err_token, team_id, user_id);
+            console.log('Check Token Error', team_id, user_id, err);
             reject();
         });
     });
@@ -298,69 +346,45 @@ const check_token = (team_id, user_id) => {
 
 
 const persist_scheduled_message = (date, payload) => {
-    const _id =         new Date().getTime();
-    const _created =    new Date().getTime();
-    const _updated =    new Date().getTime();
-    const _state =      -1;
-    const id =          get_date_ymd(date)
-    const message_id =  get_date_iso(date) + ',' + _id;
-    const iso_date =    get_date_iso(date);
     const team_id =     payload.team_id;
     const user_id =     payload.user_id;
+
+    const id =          new_id();
+    const created =     new Date().getTime();
+    const updated =     new Date().getTime();
+    const state =       -1;
+
+    const ymd =         get_date_ymd(date)
+    const date_id =     get_date_iso(date) + ',' + id;
+    const iso_date =    get_date_iso(date);
     const channel_id =  payload.channel_id;
     const p_str =       JSON.stringify(payload);
 
     let params = {
-        TableName: ddb_sch_msg,
-        Item: {
-            'id' :         {S: String(id)},
-            'message_id' :  {S: String(message_id)},
-            'iso_date' :    {S: String(iso_date)},
-            'team_id' :     {S: String(team_id)},
-            'user_id' :     {S: String(user_id)},
-            'channel_id' :  {S: String(channel_id)},
-            'payload' :     {S: String(p_str)},
-            '_id' :         {S: String(_id)},
-            '_created' :    {N: String(_created)},
-            '_updated' :    {N: String(_updated)},
-            '_state' :      {N: String(_state)}, 
-        }
-    };
-
-//    console.log(params);
-
-    let p = ddb.putItem(params).promise();
-    return p;
-}
-
-
-
-const update_scheduled_message = (_id, id, message_id) => {
-    const _updated =    new Date().getTime();
-    const _state =      0;
-
-    let params = {
-        TableName: ddb_sch_msg,
+        TableName: ddb_messages,
         Key: {
-            'id' :         {S: String(id)},
-            'message_id' :    {S: String(message_id)},
+            'ymd' :         {S: String(ymd)},
+            'date_id' :     {S: String(date_id)},
         },
         ExpressionAttributeNames: {
-            '#i' :          '_id',
-            '#s' :          '_state',
-            '#u' :          '_updated',
+            '#s' :          'state',
         },
         ExpressionAttributeValues: {
-            ':_id' :         {S: String(_id)},
-            ':_updated' :    {N: String(_updated)},
-            ':_state' :      {N: String(_state)}, 
+            ':iso_date' :    {S: String(iso_date)},
+            ':team_id' :     {S: String(team_id)},
+            ':user_id' :     {S: String(user_id)},
+            ':channel_id' :  {S: String(channel_id)},
+            ':payload' :     {S: String(p_str)},
+            ':id' :          {S: String(id)},
+            ':created' :     {N: String(created)},
+            ':updated' :     {N: String(updated)},
+            ':state' :       {N: String(state)}, 
         },
-        UpdateExpression: 'set #s = :_state, #u = :_updated',
-        ConditionExpression: '#i = :_id',
+        UpdateExpression: 'set iso_date = :iso_date, team_id = :team_id, user_id = :user_id, channel_id = :channel_id, payload = :payload, id = :id, created = :created, updated = :updated, #s = :state',
         ReturnValues: 'UPDATED_NEW',
     };
 
-//    console.log(params);
+    console.log('persist_scheduled_message', params);
 
     let p = ddb.updateItem(params).promise();
     return p;
@@ -368,15 +392,45 @@ const update_scheduled_message = (_id, id, message_id) => {
 
 
 
-const delete_scheduled_message = (_id, id, message_id) => {
-    const _updated =    new Date().getTime();
-    const _state =      0;
+const update_scheduled_message = (id, ymd, date_id) => {
+    const updated =    new Date().getTime();
+    const state =      0;
 
     let params = {
-        TableName: ddb_sch_msg,
+        TableName: ddb_messages,
         Key: {
-            'id' :         {S: String(id)},
-            'message_id' :    {S: String(message_id)},
+            'ymd' :         {S: String(ymd)},
+            'date_id' :     {S: String(date_id)},
+        },
+        ExpressionAttributeNames: {
+            '#i' :          'id',
+            '#s' :          'state',
+            '#u' :          'updated',
+        },
+        ExpressionAttributeValues: {
+            ':id' :          {S: String(id)},
+            ':updated' :     {N: String(updated)},
+            ':state' :       {N: String(state)}, 
+        },
+        UpdateExpression: 'set #s = :state, #u = :updated',
+        ReturnValues: 'UPDATED_NEW',
+    };
+
+    console.log('update_scheduled_message', params);
+
+    let p = ddb.updateItem(params).promise();
+    return p;
+}
+
+
+
+const delete_scheduled_message = (ymd, date_id) => {
+
+    let params = {
+        TableName: ddb_messages,
+        Key: {
+            'ymd' :          {S: String(ymd)},
+            'date_id' :      {S: String(date_id)},
         },
         ReturnValues: 'ALL_OLD',
     };
@@ -388,22 +442,20 @@ const delete_scheduled_message = (_id, id, message_id) => {
 }
 
 
-
-const query_scheduled_messages = (date) => {
-    const id =         get_date_ymd(date);
-    const _state =      '-1';
-
+const query_scheduled_messages_by_id = (team_id, user_id, id) => {
     var params = {
-        TableName: ddb_sch_msg,
+        TableName: ddb_messages,
+        IndexName: 'team_id_index',
         ExpressionAttributeValues: {
-            ':id':     {S: id},
-//            ':_state':     {S: _state},
+            ':team_id':     {S: team_id},
+            ':id':         {S: id},
+            ':user_id':     {S: user_id},
         },
-//        ExpressionAttributeNames: {
-//            '#s' :          '_state',
-//        },
-        KeyConditionExpression: 'id = :id AND begins_with(message_id, :id)',
-//        FilterExpression: '#s = :_state',
+        ExpressionAttributeNames: {
+            '#id' :          'id',
+        },
+        KeyConditionExpression: 'team_id = :team_id AND #id = :id',
+        FilterExpression: 'user_id = :user_id'
     };
 
 //    console.log(params);
@@ -414,57 +466,108 @@ const query_scheduled_messages = (date) => {
 
 
 
-const slack_post_message = (_id, id, message_id, payload) => {
+const query_scheduled_messages_by_user = (team_id, user_id) => {
+    var params = {
+        TableName: ddb_messages,
+        IndexName: 'team_user_index',
+        ExpressionAttributeValues: {
+            ':team_id':     {S: team_id},
+            ':user_id':     {S: user_id},
+        },
+        KeyConditionExpression: 'team_id = :team_id AND user_id = :user_id',
+    };
+
+//    console.log(params);
+
+    let p = ddb.query(params).promise();
+    return p;
+};
+
+
+
+const query_scheduled_messages_by_date = (date) => {
+    const ymd =        get_date_ymd(date);
+    const state =      '-1';
+
+    var params = {
+        TableName: ddb_messages,
+        ExpressionAttributeValues: {
+            ':ymd':     {S: ymd},
+        },
+        KeyConditionExpression: 'ymd = :ymd AND begins_with(date_id, :ymd)',
+    };
+
+//    console.log(params);
+
+    let p = ddb.query(params).promise();
+    return p;
+};
+
+
+
+// ----------------------------------------------------------
+// Slack Interactions
+// ----------------------------------------------------------
+
+const slack_post_message = (id, ymd, date_id, payload) => {
     const team_id = payload.team_id;
     const user_id = payload.user_id;
     const channel_id = payload.channel_id;
 
     const p = check_token(team_id, user_id);
     p.then((access_token) => {
-        const slack_web = new WebClient(access_token);
-        const clean_text = payload.clean_text;
+        if(access_token) {
+            const slack_web = new WebClient(access_token);
+            const clean_text = payload.clean_text;
 
-        let params = {
-            channel: channel_id,
-            text: clean_text,
-            as_user: true,
-            link_names: true,
-            parse: 'full',
-            reply_broadcast: true,
-            thread_ts: undefined,
-        };
+            let params = {
+                channel: channel_id,
+                text: clean_text,
+                as_user: true,
+                link_names: true,
+                parse: 'full',
+                reply_broadcast: true,
+                thread_ts: undefined,
+            };
 
-        slack_web.chat.postMessage(params)
-        .then((data) => {
-            if(data.ok) {
-                console.log('Post Message Sent: ', _id, data.ts);
-                delete_scheduled_message(_id, id, message_id)
-                .then((data) => {
-                    console.log('Post Message Delete Success', data);
-                })
-                .catch((err) => {
-                    console.log('Post Message Delete Error', err);
-                });
-            } else {
-                console.log('Post Message Slack Error', _id, data);
-            }
-        })
-        .catch((err) => {
-            console.log('Post Message Slack Error', _id, err);
-        });
+            slack_web.chat.postMessage(params)
+            .then((data) => {
+                if(data.ok) {
+                    console.log('Post Message Sent: ', id, data.ts);
+                    delete_scheduled_message(ymd, date_id)
+                    .then((data) => {
+                        console.log('Post Message Delete Success', data);
+                    })
+                    .catch((err) => {
+                        console.log('Post Message Delete Error', err);
+                    });
+                } else {
+                    console.log('Post Message Slack Error', id, data);
+                }
+            })
+            .catch((err) => {
+                console.log('Post Message Slack Error', id, err);
+            });
+        } else {
+            console.log('Post Message Query Token Missing', team_id, user_id);
+        }
     })
     .catch((err) => {
-        console.log('Post Message Query Token Error', _id, err);
+        console.log('Post Message Query Token Error', id, err);
     });
 };
 
 
 
+// ----------------------------------------------------------
+// Lambda Handlers
+// ----------------------------------------------------------
+
 module.exports.scheduled_event = (event, context, callback) => {
     const body = {};
 
     const now =new Date();
-    let p = query_scheduled_messages(now);
+    let p = query_scheduled_messages_by_date(now);
 
     p.then((data) => {
         const items = data['Items'];
@@ -472,26 +575,26 @@ module.exports.scheduled_event = (event, context, callback) => {
         for(var ea in items) {
             const item = items[ea];
 
-            const id = item.id['S'];
-            const message_id = item.message_id['S'];
+            const ymd = item.ymd['S'];
+            const date_id = item.date_id['S'];
             const iso_date = item.iso_date['S'];
-            const _state = Number(item._state['N']);
-            const _id = item._id['S'];
+            const state = Number(item.state['N']);
+            const id = item.id['S'];
 
             const now = new Date();
             const iso = new Date(iso_date);
 
-            console.log(_id, _state, 'iso', iso, '<=', 'now', now);
+            console.log(id, state, 'iso', iso, '<=', 'now', now);
 
-            if( _state == -1 && iso.getTime() <= now.getTime()) {
+            if( state == -1 && iso.getTime() <= now.getTime()) {
                 let _payload = item.payload['S'];
                 let payload = JSON.parse(_payload);
                 console.log(payload);
-                if(validate_payload(_id, payload)) {
-                    slack_post_message(_id, id, message_id, payload);
+                if(validate_payload(id, payload)) {
+                    slack_post_message(id, ymd, date_id, payload);
                 }
             } else {
-                console.log('Query Payload Skipped Message ', _id, _state);
+                console.log('Query Payload Skipped Message ', id, state);
             }
         }
         send_response(body, callback);
@@ -504,47 +607,205 @@ module.exports.scheduled_event = (event, context, callback) => {
 
 
 
+/*
+    Example event payload from slack slash command
+    Could be url encoded, or json
+
+    - token
+    - team_id
+    - team_domain
+    - channel_id
+    - channel_name
+    - user_id
+    - user_name
+    - command
+    - text
+*/
+
 module.exports.slack_command = (event, context, callback) => {
     const payload = get_payload(event);
 
     let body = {};
+    body.attachments = [];
     //body.response_type = 'in_channel';
     body.response_type = 'ephemeral';
 
-    const text = payload.text;
+    let date_id = undefined;
+    let text = (payload.text) ? payload.text.trim() : '';
+
+    const command = payload.command;
+    let _tokens = text.split(' ');
+    const command2 = (_tokens.length >= 1) ? _tokens[0].toLowerCase() : '';
+    const command3 = (_tokens.length >= 2) ? _tokens[1] : undefined;
+
     const team_id = payload.team_id;
     const user_id = payload.user_id;
-    const [d, clean_text] = parse_date(text);
 
-    if(d != undefined) {
-        const d_str = get_date_formatted(d);
-        payload.clean_text = clean_text;
+    console.log('Slack Command: ', command, command2, command3);
 
-        if(validate_payload(-1, payload, callback)) {
-            const p = check_token(team_id, user_id);
-            p.then((access_token) => {
+    if(command == '/slist' || (command == '/send' && command2 == 'list')) {
+        // list
+        if(text == 'inline' || (command2 == 'list' && command3 && command3.toLowerCase() == 'inline')) {
+            body.response_type = 'in_channel';
+        }
+        const p = query_scheduled_messages_by_user(team_id, user_id);
+        p.then((data) => {
+            //console.log(data);
+            const items = data['Items'];
+            if(items.length > 0) {
+                body.text = 'Your messages:\n';
+                body.attachments = [];
+                for(var ea in items) {
+                    let item = items[ea];
 
-                let p2 = persist_scheduled_message(d, payload);
-                p2.then((data) => {
-                    console.log('Command Success', data);
-                    body.text = message_ack + clean_text + message_ack_delim + d_str;
-                    send_response(body, callback);
+                    const date_id = item.date_id['S'];
+                    const iso_date = item.iso_date['S'];
+                    const state = Number(item.state['N']);
+                    const d = new Date(iso_date);
+                    const d_str = get_date_formatted(d);
+                    const id = item.id['S'];
+
+                    if( state == -1) {
+                        let _payload = item.payload['S'];
+                        let payload = JSON.parse(_payload);
+                        if(validate_payload(id, payload)) {
+                            let a = {
+                                'pretext': undefined,
+                                'author_name':  'Channel: ' + payload.channel_name,
+                                'title': d_str,
+                                'text': payload.clean_text,
+                                'footer': 'Message ID: ' + id,
+                                'mrkdwn_in': ['text', 'pretext'],
+                            }
+                            console.log(a);
+                            body.attachments.push(a);
+                        } else {
+                            console.log('Command List Invalid Message', date_id);
+                            body.text = 'Some of your messages did not have valid tokens.'
+                        }
+                    } else {
+                        console.log('Command List Skipped Message ', date_id, state);
+                    }
+ 
+                }
+            } else {
+                body.text = 'You do not have any messages scheduled.';
+            }
+            send_response(body, callback);
+        }).catch((err) => {
+            body.text = 'Unable to get your scheduled messages.';
+            console.log(body.text, err);
+            send_response(body, callback);
+        });
+    } else if(command == '/sdelete' || (command == '/send' && command2 == 'delete')) {
+        // delete
+        if(text.trim().length == 0) {
+            console.log('Command Delete Missing ID'); 
+            body.text = message_err_missing_id;
+            send_response(body, callback);
+        } else {
+            let id_to_delete = text;
+            if(command2 == 'delete' && command3) {
+                id_to_delete = command3;
+            }
+            query_scheduled_messages_by_id(team_id, user_id, id_to_delete)
+                .then((data) => {
+                    const items = data['Items'];
+                    if(items.length > 0) {
+                        const item = items[0];
+                        const ymd = item.ymd['S'];
+                        const date_id = item.date_id['S'];
+                        delete_scheduled_message(ymd, date_id)
+                        .then((data) => {
+                            console.log('Command Delete Success', data);
+                            body.text = 'Deleted message with ID: ' + text;
+                            send_response(body, callback);
+                        })
+                        .catch((err) => {
+                            console.log('Command Delete Error', err);
+                            body.text = 'Unable to deleted message with ID: ' + text;
+                            send_response(body, callback);
+                        });
+                    } else {
+                        console.log('Command Delete Query No Results', data);
+                        body.text = 'Unable to find message with ID: ' + text;
+                        send_response(body, callback);
+                    }
                 }).catch((err) => {
-                    console.log('Command Persist Error', err);
-                    body.text = message_err + d_str;
+                    console.log('Command Delete Query Error', err);
+                    body.text = 'We encountered an error while looking for message with ID: ' + text;
                     send_response(body, callback);
                 });
-
-            }).catch((err) => {
-                console.log('Command Token Error');
-                body.text = message_err_token;
-                send_response(body, callback);
-            });
         }
-    } else {
-        console.log('Command: No date found');
-        body.text = message_no_date + text;
-        send_response(body, callback);
+    } else if(command == '/send') {
+        if(text.length == 0 || command2 == 'help') {
+            console.log('Command Send Missing text'); 
+            body.text = message_err_missing_text;
+            send_response(body, callback);
+        } else {
+            const [d, clean_text] = parse_date(text);
+
+            if(d != undefined) {
+                const d_str = get_date_formatted(d);
+                payload.clean_text = clean_text;
+
+                if(clean_text.length > 0) {
+                    if(validate_payload(-1, payload, callback)) {
+                        const p = check_token(team_id, user_id);
+                        p.then((access_token) => {
+                            if(access_token) {
+                                let p2 = persist_scheduled_message(d, payload);
+                                p2.then((data) => {
+                                    console.log('Command Send Success', data);
+                                    body.text = message_ack;
+                                    let a = {
+                                        'pretext': undefined,
+                                        'author_name':  'Channel: ' + payload.channel_name,
+                                        'title': d_str,
+                                        'text': payload.clean_text,
+                                        'footer': 'Message ID: ' + data['Attributes'].id['S'],
+                                        'mrkdwn_in': ['text', 'pretext'],
+                                    }
+                                    console.log(a);
+                                    body.attachments.push(a);
+                                    send_response(body, callback);
+                                }).catch((err) => {
+                                    console.log('Command Send Persist Error', err);
+                                    body.text = message_err;
+                                    send_response(body, callback);
+                                });
+                            } else {
+                                console.log('Command Send Token Missing', team_id, user_id);
+                                body.text = message_err_missing_token;
+                                send_response(body, callback);
+                            }
+                        }).catch((err) => {
+                            console.log('Command Send Token Error', err);
+                            body.text = message_err;
+                            send_response(body, callback);
+                        });
+                    }
+                } else {
+                    console.log('Command Send No Message'); 
+                    body.text = message_err_no_message + text;
+                    send_response(body, callback);
+                }
+            } else {
+                console.log('Command Send No date found');
+                body.text = message_err_no_date;
+                let a = {
+                    'pretext': undefined,
+                    'author_name':  'Channel: ' + payload.channel_name,
+                    'title': undefined,
+                    'text': payload.text,
+                    'footer': undefined,
+                    'mrkdwn_in': ['text', 'pretext'],
+                }
+                console.log(a);
+                body.attachments.push(a);
+                send_response(body, callback);
+            }
+        }
     }
 };
 

@@ -43,5 +43,10 @@ s-remove () {
 }
 
 s-logs () {
-    eval $scmd logs -f $1 -t --startTime 1m
+    if [ -n "$2" ]; then
+        eval $scmd logs -f $1 -t --filter $2
+    else
+        eval $scmd logs -f $1 -t --startTime 1m
+    fi
 }
+

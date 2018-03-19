@@ -90,10 +90,17 @@ We will need to add the app to you Slack Workspace
 
 - Create a Slack app - https://api.slack.com/apps?new_app=1
 - Navigate to: Slash Commands
+    - Use the URL below for each command
+        - URL: /dev/slack/send/command
     - Command: /send
-    - Request URL: /dev/slack/send/command
-    - Description: Send messages on steriods!
-    - Usage hint: [MESSAGE WHEN]
+        - Description: Schedule a message to be sent in the future
+        - Usage hint: message [when] OR help
+    - Command: /slist
+        - Description: List iunsent scheduled messages
+        - Usage hint: [inline]
+    - Command: /sdelete
+        - Description: Delete a scheduled message
+        - Usage hint: ID
 - Navigate to: OAuth & Permissions
     - Add Permission Scopes
        - bot
