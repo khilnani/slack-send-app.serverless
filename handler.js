@@ -101,6 +101,7 @@ const send_response = (body, callback) => {
         },
         body: JSON.stringify(body),
     };
+    console.log('Response: ', response);
     callback(null, response);
 };
 
@@ -114,6 +115,7 @@ const redirect_response = (url, callback) => {
         },
         body: '',
     };
+    console.log('Response: ', response);
     callback(null, response);
 };
 
