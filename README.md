@@ -10,7 +10,7 @@ It's not done yet. Take a look at [slack-send-app.serverless/issues](https://git
 
 Below is a screenshot from Slack once the API is deployed and added as a Slack app.
 
-<img src="https://raw.githubusercontent.com/khilnani/slack-send-app.serverless/master/docs/screenshot.jpg" width="35%" />
+<img src="https://raw.githubusercontent.com/khilnani/slack-send-app.serverless/master/docs/screenshot.png" width="35%" /><img src="https://raw.githubusercontent.com/khilnani/slack-send-app.serverless/master/docs/screenshot2.png" width="35%" />
 
 ## Setup
 
