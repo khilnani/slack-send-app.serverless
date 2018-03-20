@@ -23,8 +23,8 @@ OK, lets get started. There are quite a few steps here and you may need 30 mins 
 
 ## AWS Setup
 
-Since we're working with AWS Lambda and AWS API Gateway, we need to setup AWS credentials. 
-We are also going to use the Serverless framework to manage the AWS tech stack.
+Since we're working with DynamoDB, AWS Lambda and AWS API Gateway, we need to setup AWS credentials. 
+We are going to use the Serverless framework to manage the AWS tech stack.
 
 > - The role Serverless needs requires a lot of privilages. 
 > - The role used to setup and deploy is different from the permissions set on the lambda code that runs.
