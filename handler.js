@@ -718,22 +718,22 @@ module.exports.slack_command = (event, context, callback) => {
                         delete_scheduled_message(ymd, date_id)
                         .then((data) => {
                             console.log('Command Delete Success', data);
-                            body.text = 'Deleted message with ID: ' + text;
+                            body.text = 'Deleted message with ID: ' + id_to_delete;
                             send_response(body, callback);
                         })
                         .catch((err) => {
                             console.log('Command Delete Error', err);
-                            body.text = 'Unable to deleted message with ID: ' + text;
+                            body.text = 'Unable to deleted message with ID: ' + id_to_delete;
                             send_response(body, callback);
                         });
                     } else {
                         console.log('Command Delete Query No Results', data);
-                        body.text = 'Unable to find message with ID: ' + text;
+                        body.text = 'Unable to find message with ID: ' + id_to_delete;
                         send_response(body, callback);
                     }
                 }).catch((err) => {
                     console.log('Command Delete Query Error', err);
-                    body.text = 'We encountered an error while looking for message with ID: ' + text;
+                    body.text = 'We encountered an error while looking for message with ID: ' + id_to_delete;
                     send_response(body, callback);
                 });
         }
