@@ -283,7 +283,7 @@ const persist_token = (team_id, user_id, access_token, payload) => {
             'updated' :         {N: String(updated)},
             'state' :           {N: String(state)}, 
         },
-        'ReturnValues': 'ALL_NEW',
+        'ReturnValues': 'ALL_OLD',
     };
 
     console.log('persist_token', params);
