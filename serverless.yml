@@ -54,6 +54,12 @@ functions:
                 path: slack/send/command
                 method: post
                 private: false
+            - schedule:
+                rate: rate(5 minutes)
+                description: keeps lambda warm
+                enabled: true
+                input:
+                  inputpath: "/slack/send/command"
     event:
         handler: handler.slack_event
         description: Handle events from Slack

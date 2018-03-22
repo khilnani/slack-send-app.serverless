@@ -217,7 +217,7 @@ const parse_date = (text) => {
 */
 
 const get_payload = (event) => {
-    let payload = {};
+    let payload = undefined;
     const body = event.body;
     if(event.headers) {
         const ct = event.headers['Content-Type'];
@@ -243,7 +243,7 @@ const get_payload = (event) => {
     _id: -1 if validating a command
  */ 
 const validate_payload = (id, payload, callback) => {
-    if(slack.token == payload.token) {
+    if(payload && slack.token == payload.token) {
         console.log('Payload Token Validation Success', id);
         return true;
     } else {
@@ -626,188 +626,194 @@ module.exports.scheduled_event = (event, context, callback) => {
 
 module.exports.slack_command = (event, context, callback) => {
     const payload = get_payload(event);
-
     let body = {};
-    body.attachments = [];
-    //body.response_type = 'in_channel';
     body.response_type = 'ephemeral';
 
-    let date_id = undefined;
-    let text = (payload.text) ? payload.text.trim() : '';
+    if(payload) {
 
-    const command = payload.command;
-    let _tokens = text.split(' ');
-    const command2 = (_tokens.length >= 1) ? _tokens[0].toLowerCase() : '';
-    const command3 = (_tokens.length >= 2) ? _tokens[1] : undefined;
+      body.attachments = [];
+      //body.response_type = 'in_channel';
+      body.response_type = 'ephemeral';
 
-    const team_id = payload.team_id;
-    const user_id = payload.user_id;
+      let date_id = undefined;
+      let text = (payload.text) ? payload.text.trim() : '';
 
-    console.log('Slack Command: ', command, command2, command3);
+      const command = payload.command;
+      let _tokens = text.split(' ');
+      const command2 = (_tokens.length >= 1) ? _tokens[0].toLowerCase() : '';
+      const command3 = (_tokens.length >= 2) ? _tokens[1] : undefined;
 
-    if(command == '/slist' || (command == '/send' && command2 == 'list')) {
-        // list
-        if(text == 'inline' || (command2 == 'list' && command3 && command3.toLowerCase() == 'inline')) {
-            body.response_type = 'in_channel';
-        }
-        const p = query_scheduled_messages_by_user(team_id, user_id);
-        p.then((data) => {
-            //console.log(data);
-            const items = data['Items'];
-            if(items.length > 0) {
-                body.text = 'Your messages:\n';
-                body.attachments = [];
-                for(var ea in items) {
-                    let item = items[ea];
+      const team_id = payload.team_id;
+      const user_id = payload.user_id;
 
-                    const date_id = item.date_id['S'];
-                    const iso_date = item.iso_date['S'];
-                    const state = Number(item.state['N']);
-                    const d = new Date(iso_date);
-                    const d_str = get_date_formatted(d);
-                    const id = item.id['S'];
+      console.log('Slack Command: ', command, command2, command3);
 
-                    if( state == -1) {
-                        let _payload = item.payload['S'];
-                        let payload = JSON.parse(_payload);
-                        if(validate_payload(id, payload)) {
-                            let a = {
-                                'pretext': undefined,
-                                'author_name':  'Channel: ' + payload.channel_name,
-                                'title': d_str,
-                                'text': payload.clean_text,
-                                'footer': 'Message ID: ' + id,
-                                'mrkdwn_in': ['text', 'pretext'],
-                            }
-                            console.log(a);
-                            body.attachments.push(a);
-                        } else {
-                            console.log('Command List Invalid Message', date_id);
-                            body.text = 'Some of your messages did not have valid tokens.'
-                        }
-                    } else {
-                        console.log('Command List Skipped Message ', date_id, state);
-                    }
- 
-                }
-            } else {
-                body.text = 'You do not have any messages scheduled.';
-            }
-            send_response(body, callback);
-        }).catch((err) => {
-            body.text = 'Unable to get your scheduled messages.';
-            console.log(body.text, err);
-            send_response(body, callback);
-        });
-    } else if(command == '/sdelete' || (command == '/send' && command2 == 'delete')) {
-        // delete
-        if(text.trim().length == 0) {
-            console.log('Command Delete Missing ID'); 
-            body.text = message_err_missing_id;
-            send_response(body, callback);
-        } else {
-            let id_to_delete = text;
-            if(command2 == 'delete' && command3) {
-                id_to_delete = command3;
-            }
-            query_scheduled_messages_by_id(team_id, user_id, id_to_delete)
-                .then((data) => {
-                    const items = data['Items'];
-                    if(items.length > 0) {
-                        const item = items[0];
-                        const ymd = item.ymd['S'];
-                        const date_id = item.date_id['S'];
-                        delete_scheduled_message(ymd, date_id)
-                        .then((data) => {
-                            console.log('Command Delete Success', data);
-                            body.text = 'Deleted message with ID: ' + id_to_delete;
-                            send_response(body, callback);
-                        })
-                        .catch((err) => {
-                            console.log('Command Delete Error', err);
-                            body.text = 'Unable to deleted message with ID: ' + id_to_delete;
-                            send_response(body, callback);
-                        });
-                    } else {
-                        console.log('Command Delete Query No Results', data);
-                        body.text = 'Unable to find message with ID: ' + id_to_delete;
-                        send_response(body, callback);
-                    }
-                }).catch((err) => {
-                    console.log('Command Delete Query Error', err);
-                    body.text = 'We encountered an error while looking for message with ID: ' + id_to_delete;
-                    send_response(body, callback);
-                });
-        }
-    } else if(command == '/send') {
-        if(text.length == 0 || command2 == 'help') {
-            console.log('Command Send Missing text'); 
-            body.text = message_err_missing_text;
-            send_response(body, callback);
-        } else {
-            const [d, clean_text] = parse_date(text);
+      if(command == '/slist' || (command == '/send' && command2 == 'list')) {
+          // list
+          if(text == 'inline' || (command2 == 'list' && command3 && command3.toLowerCase() == 'inline')) {
+              body.response_type = 'in_channel';
+          }
+          const p = query_scheduled_messages_by_user(team_id, user_id);
+          p.then((data) => {
+              //console.log(data);
+              const items = data['Items'];
+              if(items.length > 0) {
+                  body.text = 'Your messages:\n';
+                  body.attachments = [];
+                  for(var ea in items) {
+                      let item = items[ea];
 
-            if(d != undefined) {
-                const d_str = get_date_formatted(d);
-                payload.clean_text = clean_text;
+                      const date_id = item.date_id['S'];
+                      const iso_date = item.iso_date['S'];
+                      const state = Number(item.state['N']);
+                      const d = new Date(iso_date);
+                      const d_str = get_date_formatted(d);
+                      const id = item.id['S'];
 
-                if(clean_text.length > 0) {
-                    if(validate_payload(-1, payload, callback)) {
-                        const p = check_token(team_id, user_id);
-                        p.then((access_token) => {
-                            if(access_token) {
-                                let p2 = persist_scheduled_message(d, payload);
-                                p2.then((data) => {
-                                    console.log('Command Send Success', data);
-                                    body.text = message_ack;
-                                    let a = {
-                                        'pretext': undefined,
-                                        'author_name':  'Channel: ' + payload.channel_name,
-                                        'title': d_str,
-                                        'text': payload.clean_text,
-                                        'footer': 'Message ID: ' + data['Attributes'].id['S'],
-                                        'mrkdwn_in': ['text', 'pretext'],
-                                    }
-                                    console.log(a);
-                                    body.attachments.push(a);
-                                    send_response(body, callback);
-                                }).catch((err) => {
-                                    console.log('Command Send Persist Error', err);
-                                    body.text = message_err;
-                                    send_response(body, callback);
-                                });
-                            } else {
-                                console.log('Command Send Token Missing', team_id, user_id);
-                                body.text = message_err_missing_token;
-                                send_response(body, callback);
-                            }
-                        }).catch((err) => {
-                            console.log('Command Send Token Error', err);
-                            body.text = message_err;
-                            send_response(body, callback);
-                        });
-                    }
-                } else {
-                    console.log('Command Send No Message'); 
-                    body.text = message_err_no_message + text;
-                    send_response(body, callback);
-                }
-            } else {
-                console.log('Command Send No date found');
-                body.text = message_err_no_date;
-                let a = {
-                    'pretext': undefined,
-                    'author_name':  'Channel: ' + payload.channel_name,
-                    'title': undefined,
-                    'text': payload.text,
-                    'footer': undefined,
-                    'mrkdwn_in': ['text', 'pretext'],
-                }
-                console.log(a);
-                body.attachments.push(a);
-                send_response(body, callback);
-            }
-        }
+                      if( state == -1) {
+                          let _payload = item.payload['S'];
+                          let payload = JSON.parse(_payload);
+                          if(validate_payload(id, payload)) {
+                              let a = {
+                                  'pretext': undefined,
+                                  'author_name':  'Channel: ' + payload.channel_name,
+                                  'title': d_str,
+                                  'text': payload.clean_text,
+                                  'footer': 'Message ID: ' + id,
+                                  'mrkdwn_in': ['text', 'pretext'],
+                              }
+                              console.log(a);
+                              body.attachments.push(a);
+                          } else {
+                              console.log('Command List Invalid Message', date_id);
+                              body.text = 'Some of your messages did not have valid tokens.'
+                          }
+                      } else {
+                          console.log('Command List Skipped Message ', date_id, state);
+                      }
+   
+                  }
+              } else {
+                  body.text = 'You do not have any messages scheduled.';
+              }
+              send_response(body, callback);
+          }).catch((err) => {
+              body.text = 'Unable to get your scheduled messages.';
+              console.log(body.text, err);
+              send_response(body, callback);
+          });
+      } else if(command == '/sdelete' || (command == '/send' && command2 == 'delete')) {
+          // delete
+          if(text.trim().length == 0) {
+              console.log('Command Delete Missing ID'); 
+              body.text = message_err_missing_id;
+              send_response(body, callback);
+          } else {
+              let id_to_delete = text;
+              if(command2 == 'delete' && command3) {
+                  id_to_delete = command3;
+              }
+              query_scheduled_messages_by_id(team_id, user_id, id_to_delete)
+                  .then((data) => {
+                      const items = data['Items'];
+                      if(items.length > 0) {
+                          const item = items[0];
+                          const ymd = item.ymd['S'];
+                          const date_id = item.date_id['S'];
+                          delete_scheduled_message(ymd, date_id)
+                          .then((data) => {
+                              console.log('Command Delete Success', data);
+                              body.text = 'Deleted message with ID: ' + id_to_delete;
+                              send_response(body, callback);
+                          })
+                          .catch((err) => {
+                              console.log('Command Delete Error', err);
+                              body.text = 'Unable to deleted message with ID: ' + id_to_delete;
+                              send_response(body, callback);
+                          });
+                      } else {
+                          console.log('Command Delete Query No Results', data);
+                          body.text = 'Unable to find message with ID: ' + id_to_delete;
+                          send_response(body, callback);
+                      }
+                  }).catch((err) => {
+                      console.log('Command Delete Query Error', err);
+                      body.text = 'We encountered an error while looking for message with ID: ' + id_to_delete;
+                      send_response(body, callback);
+                  });
+          }
+      } else if(command == '/send') {
+          if(text.length == 0 || command2 == 'help') {
+              console.log('Command Send Missing text'); 
+              body.text = message_err_missing_text;
+              send_response(body, callback);
+          } else {
+              const [d, clean_text] = parse_date(text);
+
+              if(d != undefined) {
+                  const d_str = get_date_formatted(d);
+                  payload.clean_text = clean_text;
+
+                  if(clean_text.length > 0) {
+                      if(validate_payload(-1, payload, callback)) {
+                          const p = check_token(team_id, user_id);
+                          p.then((access_token) => {
+                              if(access_token) {
+                                  let p2 = persist_scheduled_message(d, payload);
+                                  p2.then((data) => {
+                                      console.log('Command Send Success', data);
+                                      body.text = message_ack;
+                                      let a = {
+                                          'pretext': undefined,
+                                          'author_name':  'Channel: ' + payload.channel_name,
+                                          'title': d_str,
+                                          'text': payload.clean_text,
+                                          'footer': 'Message ID: ' + data['Attributes'].id['S'],
+                                          'mrkdwn_in': ['text', 'pretext'],
+                                      }
+                                      console.log(a);
+                                      body.attachments.push(a);
+                                      send_response(body, callback);
+                                  }).catch((err) => {
+                                      console.log('Command Send Persist Error', err);
+                                      body.text = message_err;
+                                      send_response(body, callback);
+                                  });
+                              } else {
+                                  console.log('Command Send Token Missing', team_id, user_id);
+                                  body.text = message_err_missing_token;
+                                  send_response(body, callback);
+                              }
+                          }).catch((err) => {
+                              console.log('Command Send Token Error', err);
+                              body.text = message_err;
+                              send_response(body, callback);
+                          });
+                      }
+                  } else {
+                      console.log('Command Send No Message'); 
+                      body.text = message_err_no_message + text;
+                      send_response(body, callback);
+                  }
+              } else {
+                  console.log('Command Send No date found');
+                  body.text = message_err_no_date;
+                  let a = {
+                      'pretext': undefined,
+                      'author_name':  'Channel: ' + payload.channel_name,
+                      'title': undefined,
+                      'text': payload.text,
+                      'footer': undefined,
+                      'mrkdwn_in': ['text', 'pretext'],
+                  }
+                  console.log(a);
+                  body.attachments.push(a);
+                  send_response(body, callback);
+              }
+          }
+      }
+    } else {
+      send_response(body, callback);
     }
 };
 
