@@ -6,9 +6,9 @@
 # Usage
 
 - `/send Message When` - The app will parse out the last date mentioned as the schedule date using natural language processing.
-  e.g. `/send Hey Jason, don't forget to send me that cool website at 4pm`
-  e.g. `/send Hey Jason, don't forget to send me that cool website link in 6 hours`
-- `/slist [inline]` or `/send list [inline]` - List scheduled messages. Inline allows youn to view the list across devices in the Slack channel the command is run. Each message includes a message ID and deletion button.
+  - e.g. `/send Hey Jason, don't forget to send me that cool website at 4pm`
+  - e.g. `/send Hey Jason, don't forget to send me that cool website link in 6 hours`
+- `/slist [inline]` or `/send list [inline]` - List scheduled messages. Appending `inline` allows you to view the list of scheduled messages across devices in the Slack channel the command is run. Each message includes a message ID and deletion button.
 - `/sdelete ID` or `/send delete ID` - Delete a specific message via its ID
 
 # Screenshots
