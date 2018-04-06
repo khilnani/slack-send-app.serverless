@@ -60,6 +60,24 @@ functions:
                 enabled: true
                 input:
                   inputpath: "/slack/send/command"
+    actions:
+        handler: handler.slack_actions
+        description: Handle interactive message actions from Slack
+        timeout: 30
+        events:
+            - http:
+                path: slack/send/actions
+                method: post
+                private: false
+    options:
+        handler: handler.slack_options
+        description: Handle interactive message options from Slack
+        timeout: 30
+        events:
+            - http:
+                path: slack/send/options
+                method: post
+                private: false
     event:
         handler: handler.slack_event
         description: Handle events from Slack
@@ -141,6 +159,12 @@ resources:
             Properties:
                 RetentionInDays: "7"
         CommandLogGroup:
+            Properties:
+                RetentionInDays: "7"
+        ActionsLogGroup:
+            Properties:
+                RetentionInDays: "7"
+        OptionsLogGroup:
             Properties:
                 RetentionInDays: "7"
         EventLogGroup:

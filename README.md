@@ -129,6 +129,7 @@ We will need to add the app to you Slack Workspace
     - https://github.com/slackapi/node-slack-sdk
 - API
     - https://api.slack.com/apps
+    - https://api.slack.com/docs/interactive-message-field-guide#action_payload
     - https://api.slack.com/methods
         - https://api.slack.com/methods/chat.postMessage
             - https://api.slack.com/docs/message-threading

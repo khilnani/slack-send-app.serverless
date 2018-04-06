@@ -508,8 +508,81 @@ const query_scheduled_messages_by_date = (date) => {
 
 
 // ----------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------
+
+const delete_message_helper = (team_id, user_id, id_to_delete, callback) => {
+    let body = {};
+    query_scheduled_messages_by_id(team_id, user_id, id_to_delete)
+        .then((data) => {
+            const items = data['Items'];
+            if(items.length > 0) {
+                const item = items[0];
+                const ymd = item.ymd['S'];
+                const date_id = item.date_id['S'];
+                delete_scheduled_message(ymd, date_id)
+                .then((data) => {
+                    console.log('Command Delete Success', data);
+                    body.text = 'Deleted message with ID: ' + id_to_delete;
+                    send_response(body, callback);
+                })
+                .catch((err) => {
+                    console.log('Command Delete Error', err);
+                    body.text = 'Unable to deleted message with ID: ' + id_to_delete;
+                    send_response(body, callback);
+                });
+            } else {
+                console.log('Command Delete Query No Results', data);
+                body.text = 'Unable to find message with ID: ' + id_to_delete;
+                send_response(body, callback);
+            }
+        }).catch((err) => {
+            console.log('Command Delete Query Error', err);
+            body.text = 'We encountered an error while looking for message with ID: ' + id_to_delete;
+            send_response(body, callback);
+        });
+};
+
+
+
+
+// ----------------------------------------------------------
 // Slack Interactions
 // ----------------------------------------------------------
+
+const slack_delete_message_callback = (url, text) => {
+
+        let options = {
+            method: 'POST',
+            uri: url,
+            body: {
+                'response_type': 'ephemeral',
+                'replace_original': false,
+                'text': text,
+            },
+            json: true,
+        }
+
+        console.log(options);
+
+        rp(options)
+            .then((data) => {
+                if(data.ok) {
+                    console.log('Slack Delete Message OK');
+                    console.log(data);
+                } else {
+                    console.log('Slack Delete Message Not OK');
+                    console.log(data);
+                }
+            })
+            .catch((err) => {
+                console.log('Slack Delete Message Error');
+                console.log(err);
+            });
+
+};
+
+
 
 const slack_post_message = (id, ymd, date_id, payload) => {
     const team_id = payload.team_id;
@@ -535,7 +608,7 @@ const slack_post_message = (id, ymd, date_id, payload) => {
             slack_web.chat.postMessage(params)
             .then((data) => {
                 if(data.ok) {
-                    console.log('Post Message Sent: ', id, data.ts);
+                    console.log('Post Message OK: ', id, data.ts);
                     delete_scheduled_message(ymd, date_id)
                     .then((data) => {
                         console.log('Post Message Delete Success', data);
@@ -544,7 +617,7 @@ const slack_post_message = (id, ymd, date_id, payload) => {
                         console.log('Post Message Delete Error', err);
                     });
                 } else {
-                    console.log('Post Message Slack Error', id, data);
+                    console.log('Post Message Not OK', id, data);
                 }
             })
             .catch((err) => {
@@ -681,6 +754,18 @@ module.exports.slack_command = (event, context, callback) => {
                                   'text': payload.clean_text,
                                   'footer': 'Message ID: ' + id,
                                   'mrkdwn_in': ['text', 'pretext'],
+                                  'callback_id': id,
+                                  'actions': [
+                                      {
+                                          'type': 'button',
+                                          'name': 'delete',
+                                          'text': 'Delete',
+                                          'confirm': {
+                                              'title': 'Are you sure?',
+                                              'text': "Click 'Okay' to delete message " + id,
+                                          },
+                                      },
+                                ],
                               }
                               console.log(a);
                               body.attachments.push(a);
@@ -713,34 +798,7 @@ module.exports.slack_command = (event, context, callback) => {
               if(command2 == 'delete' && command3) {
                   id_to_delete = command3;
               }
-              query_scheduled_messages_by_id(team_id, user_id, id_to_delete)
-                  .then((data) => {
-                      const items = data['Items'];
-                      if(items.length > 0) {
-                          const item = items[0];
-                          const ymd = item.ymd['S'];
-                          const date_id = item.date_id['S'];
-                          delete_scheduled_message(ymd, date_id)
-                          .then((data) => {
-                              console.log('Command Delete Success', data);
-                              body.text = 'Deleted message with ID: ' + id_to_delete;
-                              send_response(body, callback);
-                          })
-                          .catch((err) => {
-                              console.log('Command Delete Error', err);
-                              body.text = 'Unable to deleted message with ID: ' + id_to_delete;
-                              send_response(body, callback);
-                          });
-                      } else {
-                          console.log('Command Delete Query No Results', data);
-                          body.text = 'Unable to find message with ID: ' + id_to_delete;
-                          send_response(body, callback);
-                      }
-                  }).catch((err) => {
-                      console.log('Command Delete Query Error', err);
-                      body.text = 'We encountered an error while looking for message with ID: ' + id_to_delete;
-                      send_response(body, callback);
-                  });
+              delete_message_helper(team_id, user_id, id_to_delete, callback);
           }
       } else if(command == '/send') {
           if(text.length == 0 || command2 == 'help') {
@@ -814,6 +872,44 @@ module.exports.slack_command = (event, context, callback) => {
       }
     } else {
       send_response(body, callback);
+    }
+};
+
+
+
+module.exports.slack_actions = (event, context, callback) => {
+    const payload = JSON.parse(get_payload(event).payload);
+    console.log(payload);
+
+    if(validate_payload(-1, payload, callback)) {
+        const id_to_delete = payload.callback_id;
+        const team_id = payload.team.id;
+        const user_id = payload.user.id;
+        const response_url = payload.response_url;
+
+
+        let _callback = (_null, response) => {
+            const text = JSON.parse(response.body).text;
+            slack_delete_message_callback(response_url, text);
+        };
+
+        delete_message_helper(team_id, user_id, id_to_delete, _callback);
+
+        let body = {};
+        body.text = "Working on it ...";
+        send_response(body, callback);
+    }
+};
+
+
+
+module.exports.slack_options = (event, context, callback) => {
+    const payload = JSON.parse(get_payload(event).payload);
+    console.log(payload);
+
+    let body = {};
+    if(validate_payload(-1, payload, callback)) {
+        send_response(body, callback);
     }
 };
 
