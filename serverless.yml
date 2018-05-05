@@ -14,7 +14,7 @@ provider:
               - "dynamodb:*"
           Resource: "*"
     environment:
-        DDB_TOKENS: ${self:service}-${opt:stage, self:provider.stage}-v0.0-tokens
+        DDB_TOKENS: 
         DDB_MESSAGES: ${self:service}-${opt:stage, self:provider.stage}-v0.0-messages
 package:
     exclude:
@@ -34,15 +34,6 @@ functions:
                 enabled: true
             - http:
                 path: slack/send/run
-                method: get
-                private: false
-    redirect:
-        handler: handler.slack_redirect
-        description: Handle OAuth redirect for Slack
-        timeout: 30
-        events:
-            - http:
-                path: slack/send/redirect
                 method: get
                 private: false
     command:
@@ -95,23 +86,6 @@ functions:
                 private: false
 resources:
     Resources:
-        TableTokens:
-            Type: AWS::DynamoDB::Table 
-            Properties:
-                TableName: ${self:provider.environment.DDB_TOKENS}
-                AttributeDefinitions:
-                    - AttributeName: team_id
-                      AttributeType: S
-                    - AttributeName: user_id
-                      AttributeType: S
-                KeySchema:
-                    - AttributeName: team_id
-                      KeyType: HASH
-                    - AttributeName: user_id
-                      KeyType: RANGE
-                ProvisionedThroughput:
-                    ReadCapacityUnits: 20
-                    WriteCapacityUnits: 5
         TableScheduledMessages:
             Type: AWS::DynamoDB::Table 
             Properties:
@@ -159,9 +133,6 @@ resources:
                           ReadCapacityUnits: 20
                           WriteCapacityUnits: 0
         ScheduleLogGroup:
-            Properties:
-                RetentionInDays: "7"
-        RedirectLogGroup:
             Properties:
                 RetentionInDays: "7"
         CommandLogGroup:

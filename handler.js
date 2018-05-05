@@ -17,7 +17,7 @@ const moment = require('moment');
 const moment_tz = require('moment-timezone');
 // keep name as Promise for aws-cli
 // https://aws.amazon.com/blogs/developer/support-for-promises-in-the-sdk/
-const Promise = require('bluebird');
+//const Promise = require('bluebird');
 const chrono = require('chrono-node');
 const shortid = require('shortid');
 
@@ -265,50 +265,65 @@ const validate_payload = (id, payload, callback) => {
 
 const persist_token = (team_id, user_id, access_token, payload) => {
 
-    const p_str =       JSON.stringify(payload);
-    const id =          new_id();
-    const created =     new Date().getTime();
-    const updated =     new Date().getTime();
-    const state =       -1;
+    if(ddb_tokens) {
+        const p_str =       JSON.stringify(payload);
+        const id =          new_id();
+        const created =     new Date().getTime();
+        const updated =     new Date().getTime();
+        const state =       -1;
 
-    let params = {
-        TableName: ddb_tokens,
-        Item: {
-            'team_id' :         {S: String(team_id)},
-            'user_id' :         {S: String(user_id)},
-            'access_token' :    {S: String(access_token)},
-            'payload' :         {S: String(p_str)},
-            'id' :              {S: String(id)},
-            'created' :         {N: String(created)},
-            'updated' :         {N: String(updated)},
-            'state' :           {N: String(state)}, 
-        },
-        'ReturnValues': 'ALL_OLD',
-    };
+        let params = {
+            TableName: ddb_tokens,
+            Item: {
+                'team_id' :         {S: String(team_id)},
+                'user_id' :         {S: String(user_id)},
+                'access_token' :    {S: String(access_token)},
+                'payload' :         {S: String(p_str)},
+                'id' :              {S: String(id)},
+                'created' :         {N: String(created)},
+                'updated' :         {N: String(updated)},
+                'state' :           {N: String(state)}, 
+            },
+            'ReturnValues': 'ALL_OLD',
+        };
 
-    console.log('persist_token', params);
+        console.log('persist_token', params);
 
-    let p = ddb.putItem(params).promise();
-    return p;
+        let p = ddb.putItem(params).promise();
+        return p;
+    }
+
+    return new Promise((resolve, reject) => {
+        console.log('WARNING: Skipping token inserting: ddb_tokens undefined');
+        resolve();
+    });
+
 }
 
 
 
 const query_token = (team_id, user_id) => {
 
-    var params = {
-        TableName: ddb_tokens,
-        ExpressionAttributeValues: {
-            ':team_id' : {S: team_id},
-            ':user_id' : {S: user_id},
-        },
-        KeyConditionExpression: 'team_id = :team_id AND user_id = :user_id',
-    };
+    if(ddb_tokens) {
+        var params = {
+            TableName: ddb_tokens,
+            ExpressionAttributeValues: {
+                ':team_id' : {S: team_id},
+                ':user_id' : {S: user_id},
+            },
+            KeyConditionExpression: 'team_id = :team_id AND user_id = :user_id',
+        };
 
-    //    console.log(params);
+        //    console.log(params);
 
-    let p = ddb.query(params).promise();
-    return p;
+        let p = ddb.query(params).promise();
+        return p;
+    }
+
+    return new Promise((resolve, reject) => {
+        console.log('WARNING: Skipping token validation: ddb_tokens undefined');
+        resolve();
+    });
 };
 
 
@@ -898,25 +913,29 @@ module.exports.slack_command = (event, context, callback) => {
 
 
 module.exports.slack_actions = (event, context, callback) => {
-    const payload = JSON.parse(get_payload(event).payload);
-    console.log(payload);
+    let body = {};
+    if( get_payload(event) ) {
+        const payload = JSON.parse(get_payload(event).payload);
+        console.log(payload);
 
-    if(validate_payload(-1, payload, callback)) {
-        const id_to_delete = payload.callback_id;
-        const team_id = payload.team.id;
-        const user_id = payload.user.id;
-        const response_url = payload.response_url;
+        if(validate_payload(-1, payload, callback)) {
+            const id_to_delete = payload.callback_id;
+            const team_id = payload.team.id;
+            const user_id = payload.user.id;
+            const response_url = payload.response_url;
 
 
-        let _callback = (_null, response) => {
-            const text = JSON.parse(response.body).text;
-            slack_delete_message_callback(response_url, text);
-        };
+            let _callback = (_null, response) => {
+                const text = JSON.parse(response.body).text;
+                slack_delete_message_callback(response_url, text);
+            };
 
-        delete_message_helper(team_id, user_id, id_to_delete, {}, _callback);
+            delete_message_helper(team_id, user_id, id_to_delete, {}, _callback);
 
-        let body = {};
-        body.text = "Working on it ...";
+            body.text = "Working on it ...";
+            send_response(body, callback);
+        }
+    } else {
         send_response(body, callback);
     }
 };
@@ -924,11 +943,15 @@ module.exports.slack_actions = (event, context, callback) => {
 
 
 module.exports.slack_options = (event, context, callback) => {
-    const payload = JSON.parse(get_payload(event).payload);
-    console.log(payload);
-
     let body = {};
-    if(validate_payload(-1, payload, callback)) {
+    if( get_payload(event) ) {
+        const payload = JSON.parse(get_payload(event).payload);
+        console.log(payload);
+
+        if(validate_payload(-1, payload, callback)) {
+            send_response(body, callback);
+        }
+    } else {
         send_response(body, callback);
     }
 };
