@@ -3,7 +3,6 @@
 scmd="npx sls  "
 
 s-install () {
-    npm install -g serverless --upgrade
     npm install -g npm@">=5.2.0"
     npm install
 }

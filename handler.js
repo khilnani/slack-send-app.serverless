@@ -198,7 +198,7 @@ const parse_date = (text) => {
 
 
 // ----------------------------------------------------------
-// Slack Utils 
+// Slack Utils
 // ----------------------------------------------------------
 
 /*
@@ -232,6 +232,7 @@ const get_payload = (event) => {
         }
     } else {
         console.log('No Headers specified.');
+        console.log(event)
     }
     console.log(payload);
     return payload;
@@ -241,7 +242,7 @@ const get_payload = (event) => {
 
 /*
    _id: -1 if validating a command
-   */ 
+   */
 const validate_payload = (id, payload, callback) => {
     if(payload && slack.token == payload.token) {
         console.log('Payload Token Validation Success', id);
@@ -263,42 +264,6 @@ const validate_payload = (id, payload, callback) => {
 // Data
 // ----------------------------------------------------------
 
-const persist_token = (team_id, user_id, access_token, payload) => {
-
-    if(ddb_tokens) {
-        const p_str =       JSON.stringify(payload);
-        const id =          new_id();
-        const created =     new Date().getTime();
-        const updated =     new Date().getTime();
-        const state =       -1;
-
-        let params = {
-            TableName: ddb_tokens,
-            Item: {
-                'team_id' :         {S: String(team_id)},
-                'user_id' :         {S: String(user_id)},
-                'access_token' :    {S: String(access_token)},
-                'payload' :         {S: String(p_str)},
-                'id' :              {S: String(id)},
-                'created' :         {N: String(created)},
-                'updated' :         {N: String(updated)},
-                'state' :           {N: String(state)}, 
-            },
-            'ReturnValues': 'ALL_OLD',
-        };
-
-        console.log('persist_token', params);
-
-        let p = ddb.putItem(params).promise();
-        return p;
-    }
-
-    return new Promise((resolve, reject) => {
-        console.log('WARNING: Skipping token inserting: ddb_tokens undefined');
-        resolve();
-    });
-
-}
 
 
 
@@ -395,7 +360,7 @@ const persist_scheduled_message = (date, payload) => {
             ':id' :          {S: String(id)},
             ':created' :     {N: String(created)},
             ':updated' :     {N: String(updated)},
-            ':state' :       {N: String(state)}, 
+            ':state' :       {N: String(state)},
         },
         UpdateExpression: 'set iso_date = :iso_date, team_id = :team_id, user_id = :user_id, channel_id = :channel_id, payload = :payload, id = :id, created = :created, updated = :updated, #s = :state',
         ReturnValues: 'UPDATED_NEW',
@@ -427,7 +392,7 @@ const update_scheduled_message = (id, ymd, date_id) => {
         ExpressionAttributeValues: {
             ':id' :          {S: String(id)},
             ':updated' :     {N: String(updated)},
-            ':state' :       {N: String(state)}, 
+            ':state' :       {N: String(state)},
         },
         UpdateExpression: 'set #s = :state, #u = :updated',
         ReturnValues: 'UPDATED_NEW',
@@ -527,6 +492,8 @@ const query_scheduled_messages_by_date = (date) => {
 // ----------------------------------------------------------
 
 const send_message_helper = (team_id, user_id, payload, text, body, callback) => {
+    console.log('send_message_helper()')
+    console.log(team_id, user_id, text)
     body.response_type = 'ephemeral';
 
     const [d, clean_text] = parse_date(text);
@@ -572,7 +539,7 @@ const send_message_helper = (team_id, user_id, payload, text, body, callback) =>
                 });
             }
         } else {
-            console.log('Command Send No Message'); 
+            console.log('Command Send No Message');
             body.text = message_err_no_message + text;
             send_response(body, callback);
         }
@@ -590,7 +557,7 @@ const send_message_helper = (team_id, user_id, payload, text, body, callback) =>
         console.log(a);
         body.attachments.push(a);
         send_response(body, callback);
-    }	
+    }
 };
 
 
@@ -656,7 +623,7 @@ const list_messages_helper = (team_id, user_id, body, callback) => {
         body.text = 'Unable to get your scheduled messages.';
         console.log(body.text, err);
         send_response(body, callback);
-    });  
+    });
 };
 
 
@@ -835,15 +802,21 @@ module.exports.scheduled_event = (event, context, callback) => {
    Example event payload from slack slash command
    Could be url encoded, or json
 
-   - token
-   - team_id
-   - team_domain
-   - channel_id
-   - channel_name
-   - user_id
-   - user_name
-   - command
-   - text
+{
+    token: '',
+    team_id: 'T...',
+    team_domain: '',
+    channel_id: 'G...',
+    channel_name: 'privategroup',
+    user_id: 'U...',
+    user_name: 'handle',
+    command: '/send',
+    text: '...',
+    response_url: 'https://hooks.slack.com/commands/T.../419428273693/nTYEYEIIgshshebsnsjhrxNp',
+    trigger_id: '420647602022.2371913449.70dhshshshsdbshwhshansh329ef62e'
+}
+
+
    */
 
 module.exports.slack_command = (event, context, callback) => {
@@ -884,7 +857,7 @@ module.exports.slack_command = (event, context, callback) => {
             // delete
             // check if an ID is sent
             if(text.trim().length == 0) {
-                console.log('Command Delete Missing ID'); 
+                console.log('Command Delete Missing ID');
                 body.text = message_err_missing_id;
                 send_response(body, callback);
             } else {
@@ -898,7 +871,7 @@ module.exports.slack_command = (event, context, callback) => {
         } else if(command == '/send') {
             // if no text or no 'help' text
             if(text.length == 0 || command2 == 'help') {
-                console.log('Command Send Missing text'); 
+                console.log('Command Send Missing text');
                 body.text = message_err_missing_text;
                 send_response(body, callback);
             } else {
@@ -957,8 +930,33 @@ module.exports.slack_options = (event, context, callback) => {
 };
 
 
+/*
 
-module.exports.slack_event = (event, context, callback) => {
+{
+    token: '',
+    team_id: 'T...',
+    api_app_id: 'A...',
+    event:
+    {
+        type: 'app_mention',
+        user: 'U...',
+        text: '<@U...> text',
+        client_msg_id: '',
+        thread_ts: '1534714829.000100',
+        parent_user_id: 'U...',
+        ts: '1534716553.000100',
+        channel: 'G...',
+        event_ts: '1534716553.000100'
+     },
+    type: 'event_callback',
+    event_id: 'EE...',
+    event_time: 1534716553,
+    authed_users: [ 'U...' ]
+  }
+
+
+*/
+module.exports.slack_events = (event, context, callback) => {
     const payload = get_payload(event);
 
     let body = {};
@@ -967,85 +965,11 @@ module.exports.slack_event = (event, context, callback) => {
         if(type == 'url_verification') {
             body.challenge = payload.challenge;
             console.log('Event:challange');
+        } else if (type == 'event_callback') {
+            console.log('Event: Callback' + payload['event']['text'])
         }
         send_response(body, callback);
     }
 };
 
 
-
-/*
-   Oauth Request (get)
-   Oauth Response (json)
-
-   - access_token
-   - scope
-   - user_id
-   - team_name
-   - team_id
-   - incoming_webhook
-   - channel
-   - channel_id
-   - configuration_url
-   - url
-   - bot
-   - bot_user_id
-   - bot_access_token
-   */
-
-module.exports.slack_redirect = (event, context, callback) => {
-    let body = {};
-
-    const qs = event.queryStringParameters;
-    if(qs && qs.code) {
-        const code = qs.code;
-
-        let options = {
-            uri: config.oauth_url,
-            qs: {
-                client_id: slack.client_id,
-                client_secret: slack.client_secret,
-                code: code,
-            },
-            json: true,
-        }
-
-        console.log(options);
-
-        rp(options)
-            .then((data) => {
-                if(data.ok) {
-                    console.log('Oauth Success');
-                    console.log(data);
-                    const team_id = data.team_id;
-                    const user_id = data.user_id;
-                    const access_token = data.access_token;
-                    const p = persist_token(team_id, user_id, access_token, data);
-                    p.then((data) => {
-                        console.log('Oauth Persist Success', data);
-                        redirect_response(slack.install_success_url, callback);
-                    })
-                    .catch((err) => {
-                        console.log('Oauth Persist Error', err);
-                        body.message = 'Oauth Persist error';
-                        send_response(body, callback);
-                    });
-                } else {
-                    body.message = 'Oauth Error: ' + data.error;
-                    console.log(body.message);
-                    console.log(data);
-                    send_response(body, callback);
-                }
-            })
-        .catch((err) => {
-            body.message = 'Oauth Error: ' + err;
-            console.log(body.message);
-            send_response(body, callback);
-        });
-    } else {
-        body.message = 'No code in query string parameters.';
-        console.log(body.message);
-        send_response(body, callback);
-    }
-
-};

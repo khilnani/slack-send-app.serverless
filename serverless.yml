@@ -14,7 +14,7 @@ provider:
               - "dynamodb:*"
           Resource: "*"
     environment:
-        DDB_TOKENS: 
+        DDB_TOKENS: slack-send-server-${opt:stage, self:provider.stage}-v0.0-tokens
         DDB_MESSAGES: ${self:service}-${opt:stage, self:provider.stage}-v0.0-messages
 package:
     exclude:
@@ -75,19 +75,19 @@ functions:
                 path: slack/send/options
                 method: post
                 private: false
-    event:
-        handler: handler.slack_event
+    events:
+        handler: handler.slack_events
         description: Handle events from Slack
         timeout: 30
         events:
             - http:
-                path: slack/send/event
+                path: slack/send/events
                 method: post
                 private: false
 resources:
     Resources:
         TableScheduledMessages:
-            Type: AWS::DynamoDB::Table 
+            Type: AWS::DynamoDB::Table
             Properties:
                 TableName: ${self:provider.environment.DDB_MESSAGES}
                 AttributeDefinitions:
@@ -144,6 +144,6 @@ resources:
         OptionsLogGroup:
             Properties:
                 RetentionInDays: "7"
-        EventLogGroup:
+        EventsLogGroup:
             Properties:
                 RetentionInDays: "7"

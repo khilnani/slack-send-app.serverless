@@ -19,19 +19,19 @@ Below is a screenshot from Slack once the API is deployed and added as a Slack a
 
 ## Setup
 
-OK, lets get started. There are quite a few steps here and you may need 30 mins to 1 hour depending on your familiarity with AWS. 
+OK, lets get started. There are quite a few steps here and you may need 30 mins to 1 hour depending on your familiarity with AWS.
 
 *Note*
 
-- The default setup will create a public API endpoint. Take a look at the *Private API Setup* section to make the API private. 
+- The default setup will create a public API endpoint. Take a look at the *Private API Setup* section to make the API private.
 - The project has been tested on Ubuntu, macOS as well as Bash on Windows 10, with and without Docker.
 
 ## AWS Setup
 
-Since we're working with DynamoDB, AWS Lambda and AWS API Gateway, we need to setup AWS credentials. 
+Since we're working with DynamoDB, AWS Lambda and AWS API Gateway, we need to setup AWS credentials.
 We are going to use the Serverless framework to manage the AWS tech stack.
 
-> - The role Serverless needs requires a lot of privilages. 
+> - The role Serverless needs requires a lot of privilages.
 > - The role used to setup and deploy is different from the permissions set on the lambda code that runs.
 > - If this concerns you, create a new AWS account to play around with.
 
@@ -82,8 +82,8 @@ In most cases you will want to secure access to this API. We'll do this using an
 - Create an API Key - https://console.aws.amazon.com/apigateway/home?region=us-east-1#/api-keys
 - Create a Usage Plan - https://console.aws.amazon.com/apigateway/home?region=us-east-1#/usage-plans
     - Add the API (`ec2-remote-dev`) and API Key you created to the Usage Plan.
-- Update `private` to `true` in the `serverless.yaml` method definition for the `unread` function 
-- Make API calls with the Request Header `x-api-key: APIKEY`. 
+- Update `private` to `true` in the `serverless.yaml` method definition for the `unread` function
+- Make API calls with the Request Header `x-api-key: APIKEY`.
 - Example:
 ```
 curl -H "x-api-key: AWS_API_KEY" https://API_ID.execute-api.us-east-1.amazonaws.com/dev/ec2/status/INSTANCE_NAME
@@ -108,14 +108,17 @@ We will need to add the app to you Slack Workspace
         - Usage hint: ID
 - Navigate to: OAuth & Permissions
     - Add Permission Scopes
-       - bot
-       - commands
-       - chat:write:user
-       - users.profile:read
-- Navigate to: Bot User
-  - Display Name: /send-app
-  - Username: send-app
-  - Always Show My Bot as Online: Yes
+       - bot - Call the bot for help
+       - commands - To view, edit and delete scheduled messages
+       - chat:write:user - To send your messages as scheduled
+       - users.profile:read - Timezone specific message scheduling and formatting
+     - Add a Redirect URL:
+        - URL: /dev/slack/send/redirect
+- Navigate to: Interactive Components
+    - Interactivity
+        - URL: /dev/slack/send/actions
+    - Message Menus
+        - URL: /dev/slack/send/options
 - Navigate to: Event Subscriptions
     - Enable: Enable Events
     - Request URL: /dev/slack/send/event
@@ -124,7 +127,10 @@ We will need to add the app to you Slack Workspace
         - tokens_revoked
     - Subscribe to Bot Events:
         - app_mention
-
+- Navigate to: Bot User
+  - Display Name: /send-app
+  - Username: send-app
+  - Always Show My Bot as Online: Yes
 
 # Links
 
@@ -148,7 +154,7 @@ We will need to add the app to you Slack Workspace
         - https://github.com/wanasit/chrono/issues/214
     - https://github.com/neilgupta/Sherlock
     - http://compromise.cool
-- Dates 
+- Dates
     - https://www.epochconverter.com
     - http://momentjs.com/docs/
     - http://momentjs.com/timezone/docs/#/
